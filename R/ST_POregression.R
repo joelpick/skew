@@ -71,34 +71,30 @@ e_p = lapply(e_st, function(x){rst(n=n, dp=x)})
 g_o = g_p
 e_o = lapply(e_st, function(x){rst(n=n, dp=x)})
 # simulate genetic and environmental effects for offspring
-# offspring genotype assumed equal toparental genotype: haploid model.
+# offspring genotype assumed equal to parental genotype: haploid model.
 
 z_p = g_p+rowSums(as.data.frame(e_p))
 z_o = g_o+rowSums(as.data.frame(e_o))
 # obtain phenotypes by summing
 
 conv<-function(par, z_p, g_st, e_st){
-  if(length(par)!=length(e_st)){stop("par shold be of length 2")}
+  if(length(par)!=length(e_st)){stop("par should be of length 2")}
   res<-dst(z_p-sum(par), dp=g_st)
   for(i in 1:length(e_st)){
      res<-res*dst(par[i], dp=e_st[[i]])
   }
   return(res)
 }  
-# Function for perfoming the convolution 
+# Function for performing the convolution 
 
 wconv<-function(par, z_p, g_st, e_st){
-  if(length(par)!=length(e_st)){stop("par shold be of length 2")}
-  res<-(z_p-sum(par))*dst(z_p-sum(par), dp=g_st)
-  for(i in 1:length(e_st)){
-     res<-res*dst(par[i], dp=e_st[[i]])
-  }
-  return(res)
+
+  (z_p-sum(par))*conv(par, z_p, g_st, e_st)
 }
-# Function for perfoming the convolution weighted by genotype effect
+# Function for performing the convolution weighted by genotype effect
 
 Ee <- sum(unlist(lapply(e_st, function(x){st.cumulants(dp=x, n=1)})))
-# Expectation of the enviromnetal component
+# Expectation of the environmental component
 
 e_llimits<-unlist(lapply(e_st, function(x){qst(1e-4, dp=x)}))
 e_ulimits<-unlist(lapply(e_st, function(x){qst(1-1e-4, dp=x)}))
