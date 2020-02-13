@@ -295,4 +295,5 @@ make_stan_dat <- function(fixed, random, pedigree=NULL, data){
 
 
 
+mean_CI <- function(x) c(mean(x),quantile(x, c(0.025,0.975)))
 
