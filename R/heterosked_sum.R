@@ -77,6 +77,9 @@ out_R_S <- replicate(100,{
 	mod_stan <- sampling(stanModel, data = stan_dat, chains=1, iter = 4000, warmup = 2000, pars=c("beta","sigma_E","alpha_E","nu_E"))
 	stan_out <- summary(mod_stan)$summary
 
+ee<-extract(mod_stan)
+hist(ee$beta[,3])
+hist(extract(mod_stan)[,,"beta[3]"])
 	return(rbind(
 			obs=c(tapply(y,x,mean),sigma=NA,alpha=NA,nu=NA,skew=stand_skew(y)),
 			lm=c(coef(lm(y~x-1)),summary(lm(y~x-1))$sigma,NA,NA,NA),
@@ -135,6 +138,7 @@ stanModel_RE <- stan_model(file = paste0(wd,"/stan/skew_t_PSY_RE_reparam.stan"))
 
 load(file= paste0(wd,"/Data/Intermediate/MP_sims_N.Rdata"))
 load(file= paste0(wd,"/Data/Intermediate/MP_sims_S.Rdata"))
+load(file= paste0(wd,"/Data/Intermediate/MP_sims_S_hom.Rdata"))
 
 out <- out_R_S
 
