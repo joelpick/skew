@@ -24,7 +24,7 @@ transformed parameters{
 
 }
 model {
-  beta ~ normal(0, 10);
+  beta ~ normal(0, 100);
   sigma_E ~ cauchy(0, 10);
 	alpha_E ~ normal(0,10);
   nu_E ~ uniform(3,30);

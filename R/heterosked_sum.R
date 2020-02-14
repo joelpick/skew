@@ -35,6 +35,8 @@ ns <- table(nest_means$male_present)
 x <- as.factor(rep(1:3,ns))
 X <- model.matrix(~x-1)
 
+total_sd <- sd(nest_means[,"wing_mm"] - means[nest_means[,"male_present"]+1])
+
 stanModel <- stan_model(file = paste0(wd,"/stan/skew_t_PSY_reparam.stan"))
 
 
@@ -87,8 +89,34 @@ out_R_S <- replicate(100,{
 })
 save(out_R_S,file= paste0(wd,"/Data/Intermediate/MP_sims_S.Rdata"))
 
+## residual level - skew - homogenous var
 
-## nest level
+out_R_S_hom <- replicate(100,{
+	
+	y <- sapply(1:sum(ns), function(i) rskt(1,rep(means,ns)[i],total_sd,-5,10) )
+
+	# hist(y, breaks=30)
+
+	stan_dat <- list(N=sum(ns),y=y, K=3, X=X)
+
+	mod_stan <- sampling(stanModel, data = stan_dat, chains=1, iter = 4000, warmup = 2000, pars=c("beta","sigma_E","alpha_E","nu_E"))
+	stan_out <- summary(mod_stan)$summary
+
+	return(rbind(
+			obs=c(tapply(y,x,mean),sigma=NA,alpha=NA,nu=NA,skew=stand_skew(y)),
+			lm=c(coef(lm(y~x-1)),summary(lm(y~x-1))$sigma,NA,NA,NA),
+			stan=c(stan_out[1:6,1],NA),
+			q2.5=c(stan_out[1:6,4],NA),
+			q25=c(stan_out[1:6,5],NA),
+			q75=c(stan_out[1:6,7],NA),
+			q97.5=c(stan_out[1:6,8],NA)
+	))
+})
+#out_R_S_hom <- out_R_S
+save(out_R_S_hom,file= paste0(wd,"/Data/Intermediate/MP_sims_S_hom.Rdata"))
+
+
+## nest level - normal residuals
 
 nest_effects <- rnorm(sum(ns),rep(means,ns), rep(sds,ns))
 nest_id <- rep(nest_effects,each=3)
@@ -96,7 +124,8 @@ nest_id <- rep(nest_effects,each=3)
 rskt(1000,0,sqrt(2),-5,10)
 
 
-stanModel <- stan_model(file = paste0(wd,"/stan/skew_t_PSY_RE_reparam.stan"))
+stanModel_RE <- stan_model(file = paste0(wd,"/stan/skew_t_PSY_RE_reparam.stan"))
+#stanModel_ME <- stan_model(file = paste0(wd,"/stan/skew_t_PSY_ME_reparam.stan"))
 
 
 
@@ -104,7 +133,10 @@ stanModel <- stan_model(file = paste0(wd,"/stan/skew_t_PSY_RE_reparam.stan"))
 
 
 
-load(file= paste0(wd,"/Data/Intermediate/MP_sims.Rdata"))
+load(file= paste0(wd,"/Data/Intermediate/MP_sims_N.Rdata"))
+load(file= paste0(wd,"/Data/Intermediate/MP_sims_S.Rdata"))
+
+out <- out_R_S
 
 apply(out,c(1,2),mean)
 apply(out,c(1,2),sd)
@@ -124,6 +156,7 @@ get_gamma<-function(alpha, nu){
 hist(out[3,"alpha",])
 hist(out[3,"nu",])
 
+get_gamma(-5,10)
 resid_skew<-get_gamma(out[3,"alpha",],out[3,"nu",])
 
 par(mfrow=c(3,1))
