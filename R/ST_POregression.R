@@ -9,10 +9,10 @@ library(MCMCglmm)
 # library(MasterBayes)
 library(sn)
 library(mvtnorm)
-
+library(cubature)
 
 if(Sys.info()["user"]=="jhadfiel"){
-  wd <- "..."
+  wd <- "~/Work/Skew/"
 }else{
   wd <- "~/Dropbox/0_blue_tits/skew/"
 }
@@ -22,8 +22,9 @@ source(paste0(wd,"R/functions.R"))
 load(paste0(wd,"Data/Intermediate/chick_data.Rdata"))
 THBW_egg<- subset(THBW_egg,!is.na(sex) & !year%in%c(2018,2019)& !is.na(tarsus_mm)& !is.na(headbill_mm)& !is.na(wing_mm)& !is.na(weight_g))
 
-load(paste0(wd,"Data/Intermediate/stanModWeightPedN20190813_0021.Rdata"))
-load(paste0(wd,"Data/Intermediate/stanModTarsus_pedN20190812_2226.Rdata"))
+load(paste0(wd,"Data/Intermediate/day15_survival_models_bv.Rdata"))
+load(paste0(wd,"Data/Intermediate/stanModTarsus_pedN20191217_1716.Rdata"))
+load(paste0(wd,"Data/Intermediate/stanModWeightPedN20191220_0905.Rdata"))
 
 
 pars_ST <- function(model, variable){
@@ -40,8 +41,8 @@ residT <- pars_ST(mod_stan_tarsus_pedN, "ind")
 nestW <- pars_ST(mod_stan_weight_pedN, "nest")
 residW <- pars_ST(mod_stan_weight_pedN, "E")
 
-muT <- pars(mod_stan_tarsus_pedN,"beta")[1]
-muW <- pars(mod_stan_weight_pedN,"beta")[1]
+muT <- mean(THBW_egg$tarsus_mm, na.rm=TRUE) # pars(mod_stan_tarsus_pedN,"beta")[1]
+muW <- mean(THBW_egg$weight_g, na.rm=TRUE) # pars(mod_stan_weight_pedN,"beta")[1]
 sigmaA_T <- pars(mod_stan_tarsus_pedN,"_A")[1]
 sigmaA_W <- pars(mod_stan_weight_pedN,"_A")[1]
 
@@ -58,7 +59,7 @@ e_st<-list(
 )
 # list of environmental distribution parameters: xi, omega, alpha, nu
 
-g_st=c(0, sigmaA_T,  0, Inf)
+g_st=c(0, sigmaA_T, 0, Inf)
 # list of genetic distribution parameters: xi, omega, alpha, nu
 int = muT
 n<-10000
@@ -68,7 +69,7 @@ g_p = rst(n=n, dp=g_st)
 e_p = lapply(e_st, function(x){rst(n=n, dp=x)})
 # simulate genetic and environmental effects for parents
 
-g_o = g_p
+g_o = 0.5*g_p+0.5*rst(n=n, dp=g_st)+rnorm(n, 0, sigmaA_T)
 e_o = lapply(e_st, function(x){rst(n=n, dp=x)})
 # simulate genetic and environmental effects for offspring
 # offspring genotype assumed equal to parental genotype: haploid model.
@@ -128,5 +129,34 @@ mz_p<-tapply(z_p, cz_p, mean)
 par(mar=c(5,5,1,1),mfrow=c(2,1))
 hist( THBW$tarsus_mm, col="grey",main="", xlab="Weight (g)")
 #plot(I(mz_o + int)~I(mz_p + int), xlim=range(dat_limW  + int), ylim=range(dat_limW + int))
+
 plot(I(Eg_p+Ee + int)~I(x + int), xlim=range(dat_lim  + int), ylim=range(dat_lim + int), type="l", xlab="Parent", ylab="Offspring", lwd=2)
+y_o<-c(tarsus_om, tarsus_of)
+y_p<-c(tarsus_m, tarsus_f)
+points(y_o~y_p)
+
+m1<-lm(y_o~y_p)
+m2<-lm(y_o~y_p+I(y_p^2))
+
+pred_c<-seq(dat_lim[1],  dat_lim[2], length=100)+int
+
+lines(predict(m1, newdata=list(y_p=pred_c))~pred_c, lty=2)
+lines(predict(m2, newdata=list(y_p=pred_c))~pred_c, lty=2)
+
+weight_om<-tapply(THBW_egg$weight_g, THBW_egg$dam_P, mean, na.rm=TRUE)
+weight_m<-THBW_egg$weight_g[match(names(weight_om), THBW_egg$bird_id)]
+
+weight_of<-tapply(THBW_egg$weight_g, THBW_egg$sire_P, mean, na.rm=TRUE)
+weight_f<-THBW_egg$weight_g[match(names(weight_of), THBW_egg$bird_id)]
+
+plot(c(weight_om, weight_of)~c(weight_m, weight_f))
+
+tarsus_om<-tapply(THBW_egg$tarsus_mm, THBW_egg$dam_P, mean, na.rm=TRUE)
+tarsus_m<-THBW_egg$tarsus_mm[match(names(tarsus_om), THBW_egg$bird_id)]
+
+tarsus_of<-tapply(THBW_egg$tarsus_mm, THBW_egg$sire_P, mean, na.rm=TRUE)
+tarsus_f<-THBW_egg$tarsus_mm[match(names(tarsus_of), THBW_egg$bird_id)]
+
+
+
 
