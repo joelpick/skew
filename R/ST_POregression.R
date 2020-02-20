@@ -65,24 +65,60 @@ g_st=c(0, geneD, 0, Inf)
 
 conv<-function(par, z_p, g_st, e_st){
 
+  ################################################################
+  #   Function for obtaining the integrand in the convolution    #
+  #             \int Pr(z_p-g_p)Pr(g_p) dg_p                     #
+  #    the distribution of genetic and environmental effects     #
+  #          are passed as parameters of the skew-t              #
+  ################################################################
+
   if(length(par)!=length(e_st)){stop("par should be of length 2")}
 
   res<-dst(z_p-sum(par), dp=g_st)
-  
+  # Pr(z_p-e_p | \theta_g) = Pr(g_p | \theta_g)
+
   for(i in 1:length(e_st)){
      res<-res*dst(par[i], dp=e_st[[i]])
   }
 
+  # Pr(g_p | \theta_g)*Pr(e_p| \theta_e) = Pr(g_p | \theta_g)*Pr(z_p-g_p| \theta_e)
+
   return(res)
 }  
-# Function for performing the convolution 
+
 
 wconv<-function(par, z_p, g_st, e_st){
+
+  #########################################################################
+  #   Function for obtaining the integrand in the weighted convolution    #
+  #                 \int g_p*Pr(z_p-g_p)Pr(g_p) dg_p                      #
+  #      the distribution of genetic and environmental effects            #
+  #          are passed as parameters of the skew-t                       #
+  #########################################################################
 
   (z_p-sum(par))*conv(par, z_p, g_st, e_st)
 
 }
-# Function for performing the convolution weighted by genotype effect
+
+
+POreg<-function(z_p, g_st, e_st, limit_prob=1e-4){
+
+  ################################################################
+  #           Function for calculating E[g_p|z_p]                #
+  #  based on distribution of genetic and environmental effects  #
+  #          (passed as parameters of the skew-t)                #
+  ################################################################
+
+  e_llimits<-unlist(lapply(e_st, function(x){qst(limit_prob, dp=x)}))
+  e_ulimits<-unlist(lapply(e_st, function(x){qst(1-limit_prob, dp=x)}))
+  # lower and upper limits when integrating over environmental effects
+
+  Eg_p<-hcubature(wconv, e_llimits, e_ulimits, z_p=z_p, g_st=g_st, e_st=e_st)$integral
+  Eg_p<-Eg_p/hcubature(conv, e_llimits, e_ulimits, z_p=z_p, g_st=g_st, e_st=e_st)$integral
+
+  return(Eg_p)
+}
+
 
 if(simulate){
 
@@ -130,13 +166,8 @@ pred_points<-sort(z_p)[seq(1, length(z_p), length(z_p)/npoints)]
 
 Eg_p<-1:npoints
 
-e_llimits<-unlist(lapply(e_st, function(x){qst(1e-4, dp=x)}))
-e_ulimits<-unlist(lapply(e_st, function(x){qst(1-1e-4, dp=x)}))
-# integration limits
-
 for(i in 1:npoints){
-  Eg_p[i] <- hcubature(wconv, e_llimits, e_ulimits, z_p=pred_points[i], g_st=g_st, e_st=e_st)$integral
-  Eg_p[i] <- Eg_p[i]/hcubature(conv, e_llimits, e_ulimits, z_p=pred_points[i], g_st=g_st, e_st=e_st)$integral
+  Eg_p[i] <- POreg(z_p=pred_points[i], g_st=g_st, e_st=e_st)
 } 
 # E[g_p|z_p]
 

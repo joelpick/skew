@@ -4,6 +4,7 @@ options(width=Sys.getenv("COLUMNS"), stringsAsFactors=FALSE)
 
 library(MCMCglmm)
 library(MASS)
+library(mvtnorm)
 
 # wd <- "~/Work"
 if(Sys.info()["user"]=="jhadfiel"){
@@ -40,6 +41,42 @@ rcmvnorm<-function(n,
  	return(rnorm(n=length(cM), mean=cM, sd=sqrt(as.numeric(cV))))
 }
 
+cmvnorm<-function( mean=NULL,
+	               sigma=NULL,
+	               cond=NULL,
+				   df=NULL, # dataframe of traits to be simulated from 
+				   keep_var,  # variable to be retained
+				   cond_var=NULL){
+	if(!is.null(df)){
+		mean <- colMeans(df)
+		sigma <- cov(df)
+		cond <- df
+	}else{
+		if(is.null(mean)){stop("mean needs to be specified if data.frame not passed in 'df'")}
+		if(is.null(sigma)){stop("sigma needs to be specified if data.frame not passed in 'df'")}
+		if(is.null(cond)){stop("cond needs to be specified if data.frame not passed in 'df'")}
+	}	
+	cV <- sigma[keep_var,keep_var]-sigma[keep_var, -keep_var]%*%solve(sigma[-keep_var, -keep_var])%*%sigma[-keep_var, keep_var]
+	if(length(dim(cond))==2){
+ 		cM <- sapply(1:nrow(cond), function(x) mean[keep_var]+sigma[keep_var, -keep_var]%*%solve(sigma[-keep_var, -keep_var])%*%(cond[x,]-mean)[-keep_var])
+ 	}else{
+ 		cM <- mean[keep_var]+sigma[keep_var, -keep_var]%*%solve(sigma[-keep_var, -keep_var])%*%(cond-mean)[-keep_var]
+ 	}	
+ 	return(list(cM=cM, cV=cV))
+}
+
+z<-rnorm(2)
+mean<-norm(2)
+sigma<-rIW(diag(2), nu=4)
+sigma<-diag(diag(sigma))
+pmvnorm(lower=c(0,0), mean=mean, sigma=sigma)
+
+pnorm(mean[1], 0, sqrt(sigma[1,1]))*pnorm(mean[2], 0, sqrt(sigma[2,2]))
+
+cond_par<-cmvnorm(mean=mean, sigma=sigma, cond=z, keep_var=1, cond_var=2)
+
+pnorm(cond_par$cM, 0, sqrt(cond_par$cV))*pnorm(mean[2], 0, sqrt(sigma[2,2]))
+
 N <- 1000
 n_it <- 1000
 
@@ -71,14 +108,49 @@ S_normal <- vector(length=n_it)
 
 ##  partial derivative of fitness function
 
-w_func<-expression(
-  pnorm(i1 + s1 * x + q1*(x^2))*pnorm(i2 + s2 * x + q2*(x^2))
+mu_etaz<-rnorm(3)
+V_etaz<-rIW(diag(3), 3)
+# mean and (co) variance of eta^(1), eta^(2), z
+
+V_nest<-rIW(diag(2), 3)
+# mean and (co) variance of nest effects
+
+z<-rnorm(1)
+
+beta<-rnorm(2)
+gamma<-rnorm(2)
+
+
+w_func<-function(z, mu_etaz, V_etaz, beta, gamma,  V_nest)
+
+	g_s<-cmvnorm(mean=mu_etaz, sigma=V_etaz, cond=c(NA,NA, z), keep_var=1:2, cond_var=3)$cM+beta*z+gamma*z^2
+    V_s<-cmvnorm(mean=mu_etaz, sigma=V_etaz, cond=c(NA,NA, z), keep_var=1:2, cond_var=3)$cV+V_nest+diag(2)
+
+	return(pmvnorm(lower=c(0,0), mean=g_s, sigma=V_s))
 )
 
-wD_func <- D(w_func, "x")
+wD_func<-function(z, mu_etaz, V_etaz, beta, gamma,  V_nest)
+
+	g_s<-cmvnorm(mean=mu_etaz, sigma=V_etaz, cond=c(NA,NA, z), keep_var=1:2, cond_var=3)$cM+beta*z+gamma*z^2
+    V_s<-cmvnorm(mean=mu_etaz, sigma=V_etaz, cond=c(NA,NA, z), keep_var=1:2, cond_var=3)$cV+V_nest+diag(2)
+
+    g_sc<-cmvnorm(mean=c(0,0), sigma=V_s, cond=g_s, keep_var=1, cond_var=2)$cM
+
+	V_sc<-cmvnorm(mean=c(0,0), sigma=V_s, cond=g_s, keep_var=1, cond_var=2)$cV
+
+    ch1<-dnorm(g_sc, 0, sqrt(V_sc))*pnorm(g_s[2], 0, sqrt(V_s[2,2]))*(beta[1]+2*gamma[1]*z+(V_s[1,2]/V_s[2,2])*(beta[2]+2*gamma[2]*z)
+    ch2<-pnorm(g_sc, 0, sqrt(V_sc))*dnorm(g_s[2], 0, sqrt(V_s[2,2]))*(beta[2]+2*gamma[2]*z)
+
+    return(ch1+ch2)
+)
+
 
 ## fixed effects shared between morph and survival analyses
 fixedEffects <- formula(~ male_present + hatch_day + clutch_sizeC + nest_hatch_dateC + sex + year)
+
+V<-MCMCglmm::rIW(diag(2), 3)
+mu<-rnorm(2)
+P<-mvtnorm::pmvnorm(lower=as.vector(mu), mean=as.vector(c(0,0)), sigma=V)
 
 
 for(j in 1:n_it){
