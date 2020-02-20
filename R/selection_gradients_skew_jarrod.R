@@ -8,13 +8,24 @@ library(mvtnorm)
 
 # wd <- "~/Work"
 if(Sys.info()["user"]=="jhadfiel"){
-	wd <- "..."
+	wd <- "~/Work/Skew/"
 }else{
 	wd <- "~/Dropbox/0_blue_tits/skew/"
 }
 
-#load(paste0(wd,"Data/Intermediate/day15_survival_models.Rdata"))
+trait<-"weight_g"
+
 load(paste0(wd,"Data/Intermediate/day15_survival_models_bv.Rdata"))
+
+if(trait=="weight_g"){
+ model<-mod_weight_bv
+}
+if(trait=="tarsus_mm"){
+ model<-mod_tarsus_bv 
+}
+rm("mod_weight_bv")
+rm("mod_tarsus_bv")
+
 THBW$year_sex <- paste(THBW$year,THBW$sex)
 
 ## THBW is the dataset used for the survival analysis
@@ -28,25 +39,7 @@ groupFunc_dataFrame <- function(dat, var, FUN) {
 	if(any(!sapply(y,is.null))) do.call(rbind, c(y, make.row.names=FALSE))
 }
 
-
-## function to simulated normally distributed trait conditioned on other traits
-rcmvnorm<-function(n,  
-				   df, # dataframe of traits to be simulated from 
-				   keep,  # variable to be retained
-				   cond=NULL){
-	mean <- colMeans(df)
-	V <- cov(df)
-	cV <- V[keep,keep]-V[keep, -keep]%*%solve(V[-keep, -keep])%*%V[-keep, keep]
- 	cM <- sapply(1:nrow(df), function(x) mean[keep]+V[keep, -keep]%*%solve(V[-keep, -keep])%*%(cond[x,]-mean)[-keep])
- 	return(rnorm(n=length(cM), mean=cM, sd=sqrt(as.numeric(cV))))
-}
-
-cmvnorm<-function( mean=NULL,
-	               sigma=NULL,
-	               cond=NULL,
-				   df=NULL, # dataframe of traits to be simulated from 
-				   keep_var,  # variable to be retained
-				   cond_var=NULL){
+cmvnorm<-function(mean=NULL, sigma=NULL, cond=NULL, df=NULL, keep_var, cond_var=NULL){
 	if(!is.null(df)){
 		mean <- colMeans(df)
 		sigma <- cov(df)
@@ -65,71 +58,15 @@ cmvnorm<-function( mean=NULL,
  	return(list(cM=cM, cV=cV))
 }
 
-z<-rnorm(2)
-mean<-norm(2)
-sigma<-rIW(diag(2), nu=4)
-sigma<-diag(diag(sigma))
-pmvnorm(lower=c(0,0), mean=mean, sigma=sigma)
-
-pnorm(mean[1], 0, sqrt(sigma[1,1]))*pnorm(mean[2], 0, sqrt(sigma[2,2]))
-
-cond_par<-cmvnorm(mean=mean, sigma=sigma, cond=z, keep_var=1, cond_var=2)
-
-pnorm(cond_par$cM, 0, sqrt(cond_par$cV))*pnorm(mean[2], 0, sqrt(sigma[2,2]))
-
-N <- 1000
-n_it <- 1000
-
-## assign trait
-
-# trait = "tarsus_mmC"
-# mod_biv<-mod_tarsus_bv
-
-trait <- "weight_gC"
-mod_biv<-mod_weight_bv
-
-
-# take n_it iterations from posterior of survival models
-sample_it <- sample(1:nrow(mod_biv$Sol),n_it, replace=FALSE)
-
-betaS1_full <- mod_biv$Sol[sample_it,grep("at\\.level\\(age,\\ 1\\)", colnames(mod_biv$Sol))]
-colnames(betaS1_full)<-gsub("at\\.level\\(age,\\ 1\\):", "", colnames(betaS1_full))
-colnames(betaS1_full)[which(colnames(betaS1_full)=="age15")]<-"(Intercept)"
-
-betaS2_full <- mod_biv$Sol[sample_it,grep("at\\.level\\(age,\\ 2\\)", colnames(mod_biv$Sol))]
-colnames(betaS2_full)<-gsub(":at\\.level\\(age,\\ 2\\)", "", colnames(betaS2_full))
-colnames(betaS2_full)[which(colnames(betaS2_full)=="age25")]<-"(Intercept)"
-
-Vn<-mod_biv$VCV[sample_it,grep("nest", colnames(mod_biv$VCV))]
-
-## empty vectors
-S_skew <- vector(length=n_it)
-S_normal <- vector(length=n_it)
-
-##  partial derivative of fitness function
-
-mu_etaz<-rnorm(3)
-V_etaz<-rIW(diag(3), 3)
-# mean and (co) variance of eta^(1), eta^(2), z
-
-V_nest<-rIW(diag(2), 3)
-# mean and (co) variance of nest effects
-
-z<-rnorm(1)
-
-beta<-rnorm(2)
-gamma<-rnorm(2)
-
-
-w_func<-function(z, mu_etaz, V_etaz, beta, gamma,  V_nest)
+w_func<-function(z, mu_etaz, V_etaz, beta, gamma,  V_nest){
 
 	g_s<-cmvnorm(mean=mu_etaz, sigma=V_etaz, cond=c(NA,NA, z), keep_var=1:2, cond_var=3)$cM+beta*z+gamma*z^2
     V_s<-cmvnorm(mean=mu_etaz, sigma=V_etaz, cond=c(NA,NA, z), keep_var=1:2, cond_var=3)$cV+V_nest+diag(2)
 
 	return(pmvnorm(lower=c(0,0), mean=g_s, sigma=V_s))
-)
+}
 
-wD_func<-function(z, mu_etaz, V_etaz, beta, gamma,  V_nest)
+wD_func<-function(z, mu_etaz, V_etaz, beta, gamma,  V_nest){
 
 	g_s<-cmvnorm(mean=mu_etaz, sigma=V_etaz, cond=c(NA,NA, z), keep_var=1:2, cond_var=3)$cM+beta*z+gamma*z^2
     V_s<-cmvnorm(mean=mu_etaz, sigma=V_etaz, cond=c(NA,NA, z), keep_var=1:2, cond_var=3)$cV+V_nest+diag(2)
@@ -138,11 +75,50 @@ wD_func<-function(z, mu_etaz, V_etaz, beta, gamma,  V_nest)
 
 	V_sc<-cmvnorm(mean=c(0,0), sigma=V_s, cond=g_s, keep_var=1, cond_var=2)$cV
 
-    ch1<-dnorm(g_sc, 0, sqrt(V_sc))*pnorm(g_s[2], 0, sqrt(V_s[2,2]))*(beta[1]+2*gamma[1]*z+(V_s[1,2]/V_s[2,2])*(beta[2]+2*gamma[2]*z)
+    ch1<-dnorm(g_sc, 0, sqrt(V_sc))*pnorm(g_s[2], 0, sqrt(V_s[2,2]))*(beta[1]+2*gamma[1]*z+(V_s[1,2]/V_s[2,2])*(beta[2]+2*gamma[2]*z))
     ch2<-pnorm(g_sc, 0, sqrt(V_sc))*dnorm(g_s[2], 0, sqrt(V_s[2,2]))*(beta[2]+2*gamma[2]*z)
 
     return(ch1+ch2)
-)
+}
+
+
+beta_pos<-grep(paste0(trait, "C:|", trait, "C$"), colnames(model$Sol))
+gamma_pos<-grep(paste0(trait, "C2:|", trait, "C2$"), colnames(model$Sol))
+
+eta1_pos<-grep("at\\.level\\(age,\\ 1\\)", colnames(model$Sol))
+eta1_pos<-setdiff(eta1_pos, c(beta_pos, gamma_pos))
+
+eta2_pos<-grep("at\\.level\\(age,\\ 2\\)", colnames(model$Sol))
+eta2_pos<-setdiff(eta2_pos, c(beta_pos, gamma_pos))
+
+X_eta1<-model$X[which(model$X[,"at.level(age, 1):age15"]==1),eta1_pos]
+X_eta2<-model$X[which(model$X[,"at.level(age, 1):age15"]==0),eta2_pos]
+
+z<-THBW[,paste0(trait, "C")]
+
+for(i in 1:nrow(model$Sol)){
+
+	eta1 <- X_eta1%*%model$Sol[i,eta1_pos]
+	eta2 <- X_eta2%*%model$Sol[i,eta2_pos]
+    beta<-model$Sol[i,beta_pos]
+    gamma<-model$Sol[i,gamma_pos]
+    
+    mu_etaz<-c(mean(eta1), mean(eta2), mean(z)) 
+    V_etaz<-cov(cbind(eta1, eta2, z))
+
+	V_nest<-matrix(model$VCV[i,grep("nest", colnames(model$VCV))], 2,2)
+
+    w_func(z[1], mu_etaz, V_etaz, beta, gamma,  V_nest)
+    wD_func(z[1], mu_etaz, V_etaz, beta, gamma,  V_nest)
+
+}
+
+## empty vectors
+S_skew <- vector(length=n_it)
+S_normal <- vector(length=n_it)
+
+##  partial derivative of fitness function
+
 
 
 ## fixed effects shared between morph and survival analyses
