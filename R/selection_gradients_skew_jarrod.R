@@ -26,20 +26,15 @@ if(trait=="tarsus_mm"){
 rm("mod_weight_bv")
 rm("mod_tarsus_bv")
 
-THBW$year_sex <- paste(THBW$year,THBW$sex)
+THBW$year_sex <- as.factor(paste(THBW$year,THBW$sex))
+THBW$year_sex <- as.factor(rep(1, nrow(THBW)))
 
 ## THBW is the dataset used for the survival analysis
 ## mod_tarsus_fledge is model of survival from day 15 to fledging for tarsus
 ## mod_tarsus_recruit is model of survival from fledging to recruitment for tarsus
 
-## function to apply a function to a subset in a dataframe and return a dataframe
-groupFunc_dataFrame <- function(dat, var, FUN) {
-	X <- split(dat, dat[,var])
-	y <- lapply(X=X,FUN=FUN)
-	if(any(!sapply(y,is.null))) do.call(rbind, c(y, make.row.names=FALSE))
-}
-
 cmvnorm<-function(mean=NULL, sigma=NULL, cond=NULL, df=NULL, keep_var, cond_var=NULL){
+
 	if(!is.null(df)){
 		mean <- colMeans(df)
 		sigma <- cov(df)
@@ -63,23 +58,36 @@ w_func<-function(z, mu_etaz, V_etaz, beta, gamma,  V_nest){
 	g_s<-cmvnorm(mean=mu_etaz, sigma=V_etaz, cond=c(NA,NA, z), keep_var=1:2, cond_var=3)$cM+beta*z+gamma*z^2
     V_s<-cmvnorm(mean=mu_etaz, sigma=V_etaz, cond=c(NA,NA, z), keep_var=1:2, cond_var=3)$cV+V_nest+diag(2)
 
-	return(pmvnorm(lower=c(0,0), mean=g_s, sigma=V_s))
+	return(pmvnorm(lower=c(0,0), mean=c(g_s), sigma=V_s))
 }
+
+w_func_norm<-function(z, mu_etaz, V_etaz, beta, gamma,  V_nest){
+
+	w_func(z, mu_etaz, V_etaz, beta, gamma,  V_nest)*dnorm(z, mu_etaz[3], sqrt(V_etaz[3,3]))
+}
+
+w_func_norm<-Vectorize(w_func_norm, "z")
 
 wD_func<-function(z, mu_etaz, V_etaz, beta, gamma,  V_nest){
 
 	g_s<-cmvnorm(mean=mu_etaz, sigma=V_etaz, cond=c(NA,NA, z), keep_var=1:2, cond_var=3)$cM+beta*z+gamma*z^2
     V_s<-cmvnorm(mean=mu_etaz, sigma=V_etaz, cond=c(NA,NA, z), keep_var=1:2, cond_var=3)$cV+V_nest+diag(2)
 
-    g_sc<-cmvnorm(mean=c(0,0), sigma=V_s, cond=g_s, keep_var=1, cond_var=2)$cM
+    g_sc<-g_s[1]-cmvnorm(mean=c(0,0), sigma=V_s, cond=c(g_s), keep_var=1, cond_var=2)$cM
 
-	V_sc<-cmvnorm(mean=c(0,0), sigma=V_s, cond=g_s, keep_var=1, cond_var=2)$cV
+	V_sc<-cmvnorm(mean=c(0,0), sigma=V_s, cond=c(g_s), keep_var=1, cond_var=2)$cV
 
-    ch1<-dnorm(g_sc, 0, sqrt(V_sc))*pnorm(g_s[2], 0, sqrt(V_s[2,2]))*(beta[1]+2*gamma[1]*z+(V_s[1,2]/V_s[2,2])*(beta[2]+2*gamma[2]*z))
-    ch2<-pnorm(g_sc, 0, sqrt(V_sc))*dnorm(g_s[2], 0, sqrt(V_s[2,2]))*(beta[2]+2*gamma[2]*z)
+    ch1<-dnorm(g_sc[1], 0, sqrt(V_sc))*pnorm(g_s[2], 0, sqrt(V_s[2,2]))*(V_etaz[1,3]/V_etaz[3,3]+beta[1]+2*gamma[1]*z-(V_s[1,2]/V_s[2,2])*(V_etaz[2,3]/V_etaz[3,3]+beta[2]+2*gamma[2]*z))
+    ch2<-pnorm(g_sc[1], 0, sqrt(V_sc))*dnorm(g_s[2], 0, sqrt(V_s[2,2]))*(V_etaz[2,3]/V_etaz[3,3]+beta[2]+2*gamma[2]*z)
 
     return(ch1+ch2)
 }
+
+wD_func_norm<-function(z, mu_etaz, V_etaz, beta, gamma,  V_nest){
+
+	wD_func(z, mu_etaz, V_etaz, beta, gamma,  V_nest)*dnorm(z, mu_etaz[3], sqrt(V_etaz[3,3]))
+}
+wD_func_norm<-Vectorize(wD_func_norm, "z")
 
 
 beta_pos<-grep(paste0(trait, "C:|", trait, "C$"), colnames(model$Sol))
@@ -91,103 +99,91 @@ eta1_pos<-setdiff(eta1_pos, c(beta_pos, gamma_pos))
 eta2_pos<-grep("at\\.level\\(age,\\ 2\\)", colnames(model$Sol))
 eta2_pos<-setdiff(eta2_pos, c(beta_pos, gamma_pos))
 
-X_eta1<-model$X[which(model$X[,"at.level(age, 1):age15"]==1),eta1_pos]
-X_eta2<-model$X[which(model$X[,"at.level(age, 1):age15"]==0),eta2_pos]
+fixedEffects <- formula(~ sex+male_present + year+hatch_day +clutch_sizeC + nest_hatch_dateC)
+
+X_eta1<-model.matrix(fixedEffects, THBW)
+X_eta2<-model.matrix(fixedEffects, THBW)
+
+if(any(!mapply(colnames(X_eta1), colnames(model$Sol)[eta1_pos], FUN=function(x,y){grepl(x,y)})[-1])){stop("design matrices and model effects don't match for eta1")}
+
+if(any(!mapply(colnames(X_eta2), colnames(model$Sol)[eta2_pos], FUN=function(x,y){grepl(x,y)})[-1])){stop("design matrices and model effects don't match for eta2")}
 
 z<-THBW[,paste0(trait, "C")]
 
-for(i in 1:nrow(model$Sol)){
+n_it<-nrow(model$Sol)
+n_it<-100
+
+n_comb<-nlevels(THBW$year_sex)
+
+beta_skew <- matrix(NA, n_it, n_comb)
+beta_normal <- matrix(NA, n_it, n_comb)
+s_skew <- matrix(NA, n_it, n_comb)
+
+for(i in 1:n_it){
 
 	eta1 <- X_eta1%*%model$Sol[i,eta1_pos]
 	eta2 <- X_eta2%*%model$Sol[i,eta2_pos]
+
     beta<-model$Sol[i,beta_pos]
     gamma<-model$Sol[i,gamma_pos]
     
-    mu_etaz<-c(mean(eta1), mean(eta2), mean(z)) 
-    V_etaz<-cov(cbind(eta1, eta2, z))
+    V_nest<-matrix(model$VCV[i,grep("nest", colnames(model$VCV))], 2,2)
 
-	V_nest<-matrix(model$VCV[i,grep("nest", colnames(model$VCV))], 2,2)
+    for(j in 1:n_comb){
 
-    w_func(z[1], mu_etaz, V_etaz, beta, gamma,  V_nest)
-    wD_func(z[1], mu_etaz, V_etaz, beta, gamma,  V_nest)
+    	eta1_sub<-eta1[THBW$year_sex==levels(THBW$year_sex)[j]]
+    	eta2_sub<-eta2[THBW$year_sex==levels(THBW$year_sex)[j]]
+    	z_sub<-z[THBW$year_sex==levels(THBW$year_sex)[j]]
 
+	    mu_etaz<-c(mean(eta1_sub), mean(eta2_sub), mean(z_sub)) 
+	    V_etaz<-cov(cbind(eta1_sub, eta2_sub, z_sub))
+
+	    W<-sapply(z_sub, w_func, mu_etaz=mu_etaz, V_etaz=V_etaz, beta=beta, gamma=gamma,  V_nest=V_nest)
+	    WD<-sapply(z_sub, wD_func, mu_etaz=mu_etaz, V_etaz=V_etaz, beta=beta, gamma=gamma,  V_nest=V_nest)
+
+	    Wnorm<-integrate(w_func_norm, lower=-Inf, upper=Inf, mu_etaz=mu_etaz, V_etaz=V_etaz, beta=beta, gamma=gamma,  V_nest=V_nest)$value
+	    WDnorm<-integrate(wD_func_norm, lower=-Inf, upper=Inf, mu_etaz=mu_etaz, V_etaz=V_etaz, beta=beta, gamma=gamma,  V_nest=V_nest)$value
+
+	    beta_skew[i,j]<-mean(WD)/mean(W)
+	    beta_normal[i,j]<-WDnorm/Wnorm
+	    s_skew[i,j]<-mean(W*z_sub/mean(W))-mean(z_sub)
+	}
+	print(i)
 }
 
-## empty vectors
-S_skew <- vector(length=n_it)
-S_normal <- vector(length=n_it)
+beta_skew<-rowMeans(beta_skew)
+beta_normal<-rowMeans(beta_normal)
+s_skew<-rowMeans(s_skew)
 
-##  partial derivative of fitness function
+q_pos<-quantile(z_sub[order(z_sub)], prob=seq(0,1,0.05))
+rec_prob<-tapply(THBW$recruit, cut(z_sub, q_pos), mean)
+mid_pos<-q_pos[-length(q_pos)]+diff(q_pos)/2
 
-
-
-## fixed effects shared between morph and survival analyses
-fixedEffects <- formula(~ male_present + hatch_day + clutch_sizeC + nest_hatch_dateC + sex + year)
-
-V<-MCMCglmm::rIW(diag(2), 3)
-mu<-rnorm(2)
-P<-mvtnorm::pmvnorm(lower=as.vector(mu), mean=as.vector(c(0,0)), sigma=V)
-
-
-for(j in 1:n_it){
-
-	## for every year-sex combination, sample with replacement from fixed effects and trait, to keep dependencies between them
-	DM_permute <- groupFunc_dataFrame(THBW, "year_sex", function(x){
-		samp <- sample(x=1:nrow(x), size=N, replace=TRUE) 		# permuted rows
-		trait_skew <- x[samp,trait] 							# permute trait
-		DM_year_permute <- model.matrix(fixedEffects,x)[samp,]	# permute design matrix
-		i1 <- DM_year_permute %*% betaS1_full[j,colnames(DM_year_permute)]	# intercept for fledging model
-		i2 <- DM_year_permute %*% betaS2_full[j,colnames(DM_year_permute)]	# intercepts for recruitment model
-		u<-mvrnorm(N, c(0,0), matrix(Vn[j,],2,2))
-		i1<-i1+u[,1]
-		i2<-i2+u[,2]
-		trait_normal <- rcmvnorm(df= cbind(trait_skew,i1,i2), keep = 1, cond = cbind(NA,i1,i2))	# simulate 'normally distributed' trait values with same dependencies among covariates
-		return(data.frame(trait_skew=trait_skew,trait_normal=trait_normal,i1=i1,i2=i2,year_sex=unique(x$year_sex)))
-	})
-
-	## data for skewed trait
-	pars_skew <- data.frame(
-		x = DM_permute[,"trait_skew"],
-		i1 = DM_permute[,"i1"],
-		s1 = betaS1_full[j,trait],
-		q1 = betaS1_full[j,paste0(trait,2)],
-		i2 = DM_permute[,"i2"],
-		s2 = betaS2_full[j,trait],
-		q2 = betaS2_full[j,paste0(trait,2)])
-	
-	## data for normal trait - just replace x
-	pars_normal <- pars_skew 
-	pars_normal$x <- DM_permute[,"trait_normal"]
-
-	## partial derivatives over skewed trait distribution
-	wD_skew <- eval(wD_func, pars_skew)
-
-	## expected fitness over skewed trait distribution
-	mW_skew <- eval(w_func, pars_skew)
-
-	## selection gradient for skewed trait
-	S_skew[j] <- mean(tapply(wD_skew,DM_permute$year_sex,mean) / tapply(mW_skew,DM_permute$year_sex,mean))
-
-	## partial derivatives over normal trait distribution
-	wD_normal <- eval(wD_func, pars_normal)
-	
-	## expected fitness over normal trait distribution
-	mW_normal <- eval(w_func, pars_normal)
-	
-	## selection gradient for normal trait
-	S_normal[j] <- mean(tapply(wD_normal,DM_permute$year_sex,mean) / tapply(mW_normal,DM_permute$year_sex,mean))
-
-	## progress bar
-	if((j/n_it) %in% ((1:10)/10)) cat(paste0((j/n_it) * 100,"% "))
+plot(W[order(z_sub)]~z_sub[order(z_sub)], type="l")
+points(rec_prob~mid_pos, col="red")
+for(j in seq(1,length(z_sub), length=20)){
+arrows(z_sub[order(z_sub)][j], W[order(z_sub)][j], z_sub[order(z_sub)][j]+0.1, W[order(z_sub)][j]+WD[order(z_sub)][j]*0.1, length=0.1)
 }
+# Check everything looks look OK
 
-save(S_normal,S_skew,file=paste0(wd,"Data/Intermediate/selection_gradient_",trait,"_",format(Sys.time(), "%Y%m%d_%H%M"),".Rdata"))
+save(beta_skew,beta_normal, s_skew,file=paste0(wd,"Data/Intermediate/selection_gradient_",trait,"_",format(Sys.time(), "%Y%m%d_%H%M"),".Rdata"))
 
 par(mfrow=c(3,1))
-hist(S_normal, xlim=range(c(S_normal,S_skew)), breaks=50)
-hist(S_skew, xlim=range(c(S_normal,S_skew)), breaks=50)
-hist((S_skew-S_normal), breaks=50)
+hist(beta_skew, xlim=range(c(beta_normal,beta_skew)), breaks=50)
+hist(beta_normal, xlim=range(c(beta_normal,beta_skew)), breaks=50)
+hist(beta_normal-beta_skew, breaks=50)
 
-sum(S_skew>S_normal)/n_it
-sum(S_normal<0)/n_it
-sum(S_skew<0)/n_it
+sum(beta_skew<beta_normal)/n_it
+sum(beta_skew<0)/n_it
+sum(beta_normal<0)/n_it
+
+
+par(mfrow=c(3,1))
+hist(beta_skew, xlim=range(c(beta_normal,beta_skew)), breaks=50)
+hist(s_skew, xlim=range(c(beta_normal,beta_skew)), breaks=50)
+hist(s_skew-beta_skew, breaks=50)
+
+sum(beta_skew<s_skew)/n_it
+sum(beta_skew<0)/n_it
+sum(s_skew<0)/n_it
+
