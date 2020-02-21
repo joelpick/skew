@@ -1,3 +1,12 @@
+functions{
+  real get_gamma(real alpha, real nu){
+    real delta = alpha / sqrt(1 + alpha^2); 
+    real b_nu = sqrt(nu/pi()) * tgamma((nu-1)/2)/tgamma(nu/2);
+    real sigma_z = sqrt(nu/(nu-2) - (b_nu*delta)^2);
+    real gamma = (b_nu*delta)/sigma_z^3 * ( (nu*(3-delta^2))/(nu-3) - (3*nu)/(nu-2)  + 2*(b_nu*delta)^2 );
+    return(gamma);
+  }
+}
 data {
 	int<lower=0> N;                 
 	vector[N] y;                    
@@ -9,7 +18,7 @@ parameters {
 	vector [K]beta;
   real<lower=0> sigma_E;
 	real alpha_E;
-  real<lower=3> nu_E;
+  real<lower=4> nu_E;
 }
 transformed parameters{
 
@@ -27,6 +36,9 @@ model {
   beta ~ normal(0, 100);
   sigma_E ~ cauchy(0, 10);
 	alpha_E ~ normal(0,10);
-  nu_E ~ uniform(3,30);
+  nu_E ~ uniform(4,40);
  target += log(2) + student_t_lpdf(y | nu_E, mu, omega_E) + student_t_lcdf(y_scaled | nu_E, 0, 1);
+}
+generated quantities {
+  real gamma_E = get_gamma(alpha_E, nu_E);
 }
