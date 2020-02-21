@@ -111,7 +111,7 @@ if(any(!mapply(colnames(X_eta2), colnames(model$Sol)[eta2_pos], FUN=function(x,y
 z<-THBW[,paste0(trait, "C")]
 
 n_it<-nrow(model$Sol)
-n_it<-100
+n_it<-1
 
 n_comb<-nlevels(THBW$year_sex)
 
@@ -155,7 +155,7 @@ beta_skew<-rowMeans(beta_skew)
 beta_normal<-rowMeans(beta_normal)
 s_skew<-rowMeans(s_skew)
 
-q_pos<-quantile(z_sub[order(z_sub)], prob=seq(0,1,0.05))
+q_pos<-seq(min(z_sub), max(z_sub), length=15)
 rec_prob<-tapply(THBW$recruit, cut(z_sub, q_pos), mean)
 mid_pos<-q_pos[-length(q_pos)]+diff(q_pos)/2
 
