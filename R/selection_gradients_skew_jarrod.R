@@ -6,7 +6,7 @@ library(MCMCglmm)
 library(MASS)
 library(mvtnorm)
 
-# wd <- "~/Work"
+# source("~/Work/Skew/R/selection_gradients_skew_jarrod.R")
 if(Sys.info()["user"]=="jhadfiel"){
 	wd <- "~/Work/Skew/"
 }else{
@@ -14,6 +14,8 @@ if(Sys.info()["user"]=="jhadfiel"){
 }
 
 trait<-"weight_g"
+posterior_mean<-FALSE
+by<-c("year", "sex")
 
 load(paste0(wd,"Data/Intermediate/day15_survival_models_bv.Rdata"))
 
@@ -26,12 +28,24 @@ if(trait=="tarsus_mm"){
 rm("mod_weight_bv")
 rm("mod_tarsus_bv")
 
-THBW$year_sex <- as.factor(paste(THBW$year,THBW$sex))
-THBW$year_sex <- as.factor(rep(1, nrow(THBW)))
+if(!is.null(by)){
+	THBW$category <- as.factor(rep(1, nrow(THBW)))
+}else{
+	THBW$category <- as.factor(apply(THBW[,by], 1, paste, collapse=""))
+}
 
-## THBW is the dataset used for the survival analysis
-## mod_tarsus_fledge is model of survival from day 15 to fledging for tarsus
-## mod_tarsus_recruit is model of survival from fledging to recruitment for tarsus
+bin <- function(x, n=10){
+	breaks<-seq(min(x, na.rm=TRUE),max(x, na.rm=TRUE)*1.0001,length.out=n+1)
+	xCat <- min(breaks) + (abs(breaks[2]-breaks[1]))*sapply(x,function(y) sum(y>=breaks)-0.5)
+	xCat
+}
+
+binPlot <- function(formula,data,text.cex=1,...){
+	bindedMeans<- aggregate(formula,data,mean)
+	bindedCounts<- aggregate(formula,data,length)
+	plot(formula,bindedMeans, pch=19,...)
+	text(formula,bindedMeans, bindedCounts[,2], pos=3,cex=text.cex)
+}
 
 cmvnorm<-function(mean=NULL, sigma=NULL, cond=NULL, df=NULL, keep_var, cond_var=NULL){
 
@@ -65,7 +79,6 @@ w_func_norm<-function(z, mu_etaz, V_etaz, beta, gamma,  V_nest){
 
 	w_func(z, mu_etaz, V_etaz, beta, gamma,  V_nest)*dnorm(z, mu_etaz[3], sqrt(V_etaz[3,3]))
 }
-
 w_func_norm<-Vectorize(w_func_norm, "z")
 
 wD_func<-function(z, mu_etaz, V_etaz, beta, gamma,  V_nest){
@@ -110,10 +123,13 @@ if(any(!mapply(colnames(X_eta2), colnames(model$Sol)[eta2_pos], FUN=function(x,y
 
 z<-THBW[,paste0(trait, "C")]
 
-n_it<-nrow(model$Sol)
-n_it<-1
+if(posterior_mean){
+	n_it<-1
+}else{
+   	n_it<-nrow(model$Sol)
+}
 
-n_comb<-nlevels(THBW$year_sex)
+n_comb<-nlevels(THBW$category)
 
 beta_skew <- matrix(NA, n_it, n_comb)
 beta_normal <- matrix(NA, n_it, n_comb)
@@ -121,19 +137,30 @@ s_skew <- matrix(NA, n_it, n_comb)
 
 for(i in 1:n_it){
 
-	eta1 <- X_eta1%*%model$Sol[i,eta1_pos]
-	eta2 <- X_eta2%*%model$Sol[i,eta2_pos]
+    if(posterior_mean){
+    	eta1 <- X_eta1%*%colMeans(model$Sol[,eta1_pos])
+		eta2 <- X_eta2%*%colMeans(model$Sol[,eta2_pos])
 
-    beta<-model$Sol[i,beta_pos]
-    gamma<-model$Sol[i,gamma_pos]
-    
-    V_nest<-matrix(model$VCV[i,grep("nest", colnames(model$VCV))], 2,2)
+	    beta<-colMeans(model$Sol[,beta_pos])
+	    gamma<-colMeans(model$Sol[,gamma_pos])
+
+	    V_nest<-matrix(colMeans(model$VCV[,grep("nest", colnames(model$VCV))]), 2,2)
+    }else{
+		eta1 <- X_eta1%*%model$Sol[i,eta1_pos]
+		eta2 <- X_eta2%*%model$Sol[i,eta2_pos]
+
+	    beta<-model$Sol[i,beta_pos]
+	    gamma<-model$Sol[i,gamma_pos]
+
+	    V_nest<-matrix(model$VCV[i,grep("nest", colnames(model$VCV))], 2,2)
+    }
+   
 
     for(j in 1:n_comb){
 
-    	eta1_sub<-eta1[THBW$year_sex==levels(THBW$year_sex)[j]]
-    	eta2_sub<-eta2[THBW$year_sex==levels(THBW$year_sex)[j]]
-    	z_sub<-z[THBW$year_sex==levels(THBW$year_sex)[j]]
+    	eta1_sub<-eta1[THBW$category==levels(THBW$category)[j]]
+    	eta2_sub<-eta2[THBW$category==levels(THBW$category)[j]]
+    	z_sub<-z[THBW$category==levels(THBW$category)[j]]
 
 	    mu_etaz<-c(mean(eta1_sub), mean(eta2_sub), mean(z_sub)) 
 	    V_etaz<-cov(cbind(eta1_sub, eta2_sub, z_sub))
@@ -155,18 +182,19 @@ beta_skew<-rowMeans(beta_skew)
 beta_normal<-rowMeans(beta_normal)
 s_skew<-rowMeans(s_skew)
 
-q_pos<-seq(min(z_sub), max(z_sub), length=15)
-rec_prob<-tapply(THBW$recruit, cut(z_sub, q_pos), mean)
-mid_pos<-q_pos[-length(q_pos)]+diff(q_pos)/2
-
-plot(W[order(z_sub)]~z_sub[order(z_sub)], type="l")
-points(rec_prob~mid_pos, col="red")
-for(j in seq(1,length(z_sub), length=20)){
-arrows(z_sub[order(z_sub)][j], W[order(z_sub)][j], z_sub[order(z_sub)][j]+0.1, W[order(z_sub)][j]+WD[order(z_sub)][j]*0.1, length=0.1)
-}
-# Check everything looks look OK
+THBW$traitCat <- bin(z,n=20)+attr(z, "scaled:center")
 
 save(beta_skew,beta_normal, s_skew,file=paste0(wd,"Data/Intermediate/selection_gradient_",trait,"_",format(Sys.time(), "%Y%m%d_%H%M"),".Rdata"))
+
+par(mar=c(5,5,1,1),mfrow=c(3,1), bty="l")
+hist(z_sub+attr(z, "scaled:center"), col="grey",main="", xlab=paste(trait), breaks=30)
+
+binPlot(recruit~traitCat, THBW, xlab=paste(trait), ylab="Fitness", ylim=c(0,0.1), xlim=range(z)+attr(z, "scaled:center"),text.cex=0.7);
+abline(v=mean(z_sub)+attr(z, "scaled:center"), col="grey")
+lines(W[order(z_sub)]~I(z_sub[order(z_sub)]+attr(z, "scaled:center")), col="red", lwd=2)
+
+plot(WD[order(z_sub)]~I(z_sub[order(z_sub)]+attr(z, "scaled:center")), type="l", ylab="Fitness Derivative", xlab=paste(trait), lwd=2, col="red")
+abline(v=mean(z_sub)+attr(z, "scaled:center"), col="grey")
 
 par(mfrow=c(3,1))
 hist(beta_skew, xlim=range(c(beta_normal,beta_skew)), breaks=50)
