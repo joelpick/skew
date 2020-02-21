@@ -94,6 +94,20 @@ site_moves[order(site_moves$bird_id),]
 
 
 
+plot_wd <- "~/Dropbox/0_Presentations/images/"
+
+setEPS()
+pdf(paste0(plot_wd,"skew_dispersal.pdf"), height=8, width=6)
+{
+par(mfrow=c(2,1),mar=c(5,5,0,0),cex.axis=1.25, cex.lab=1.5)
+
+boxplot(tarsus_mm~type+morph_sex,adults, ylab="Adult tarsus length (mm)")
+
+plot(distance~tarsus_mm,recruits3, pch=19, col=c(1,2)[as.factor(recruits3$morph_sex)], ylab="Natal Distance", xlab="Day 15 tarsus length (mm)")
+}
+dev.off()
+
+
 
 
 dd2 <- groupFunc_dataFrame(tMORPH2,"bird_id",function(x){
@@ -140,3 +154,5 @@ dd2 <- groupFunc_dataFrame(tMORPH2,"bird_id",function(x){
 	}
 	return(out)
 })
+
+
