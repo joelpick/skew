@@ -255,7 +255,20 @@ factorisePed <- function(pedigree, unknown=0){
 
     return(new_ped)
 }
-#random=~nest + nest_orig  +mm(dam,sire)+ animal(animal)
+
+mskt<-function(xi=0, omega=1, alpha=0, nu=Inf, dp=NULL){
+	# from Azzalini & Capitanio 203
+	if(!is.null(dp)){
+		if(length(dp)!=4){stop("dp should be of length 4")}
+		xi<-dp[1]
+		omega<-dp[2]
+		alpha<-dp[3]
+		nu<-dp[4]
+	}
+    delta<-alpha/sqrt(1+alpha^2)
+	mu<-delta*((nu/pi)^(0.5))*gamma(0.5*(nu-1))/gamma(0.5*nu)
+	xi+omega*mu
+}
 
 make_stan_dat <- function(fixed, random, pedigree=NULL, data){
 	F_vars <- all.vars(fixed)

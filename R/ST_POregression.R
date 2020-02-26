@@ -10,10 +10,13 @@ library(sn)
 library(mvtnorm)
 library(cubature)
 library(gam)
+library(doppelgangR)
 
 trait<-"weight_g"
 simulate<-FALSE
 nsim<-10000 # number of simulated parent-offspring pairs
+pred_cond<-c("year2012", "year2013", "year2014", "year2015","year2016","year2017","year2018","sexM", "timeC") # terms to omit from the variance
+
 
 if(simulate & nsim%%200!=0){
  stop("nsim must be divisible by 200")
@@ -47,16 +50,30 @@ if(trait=="weight_g"){
   model<-get(load(paste0(wd,"Data/Intermediate/stanModWeightPedN20191220_0905.Rdata")))
 }
 
-mu_pred<-stan_data_weight$X%*%pars(model, "beta")[,1]
+pred_cond_pos<-match(pred_cond, colnames(stan_data_weight$X))
+pred_pos<-match(setdiff(colnames(stan_data_weight$X), pred_cond), colnames(stan_data_weight$X))
+
+mu_pred_cond<-stan_data_weight$X[,pred_cond_pos]%*%pars(model, "beta")[pred_cond_pos,1]
+mu_pred<-stan_data_weight$X[,pred_pos]%*%pars(model, "beta")[pred_pos,1]
 
 nestD <- pars_ST(model, "nest")
 residD <- pars_ST(model, if(trait=="weight_g"){"E"}else{"ind"})
 geneD <- pars(model,"_A")[1]
+fixedD<-st.mle(y = mu_pred)$dp
+names(fixedD)<-paste0(c("xi", "omega", "alpha", "nu"), "_fixed")
+
+mc<-max(hist(mu_pred, breaks=30)$counts)
+dmu_pred<-dst(mu_pred, dp=fixedD)
+lines(I(dmu_pred[order(mu_pred)]*mc/max(dmu_pred))~mu_pred[order(mu_pred)])
+# check to make sure skew-t approximation for fixed effect predictors is good.
 
 e_st<-list(
   n_st=nestD[,1],
-  e_st=residD[,1]
+  e_st=residD[,1],
+  fixed_st=fixedD
 )
+
+
 # list of environmental distribution parameters: xi, omega, alpha, nu
 
 g_st=c(0, geneD, 0, Inf)
@@ -140,13 +157,13 @@ if(simulate){
 
 }else{
 
-  z_om<-tapply(THBW_egg_noRep[[trait]]-mu_pred, THBW_egg_noRep$dam_P, mean, na.rm=TRUE)
+  z_om<-tapply(THBW_egg_noRep[[trait]]-mu_pred_cond, THBW_egg_noRep$dam_P, mean, na.rm=TRUE)
   z_nm<-tapply(THBW_egg_noRep[[trait]], THBW_egg_noRep$dam_P, function(x){sum(!is.na(x))})
-  z_m<-(THBW_egg_noRep[[trait]]-mu_pred)[match(names(z_om), THBW_egg_noRep$bird_id)]
+  z_m<-(THBW_egg_noRep[[trait]]-mu_pred_cond)[match(names(z_om), THBW_egg_noRep$bird_id)]
 
-  z_of<-tapply(THBW_egg_noRep[[trait]]-mu_pred, THBW_egg_noRep$sire_P, mean, na.rm=TRUE)
+  z_of<-tapply(THBW_egg_noRep[[trait]]-mu_pred_cond, THBW_egg_noRep$sire_P, mean, na.rm=TRUE)
   z_nf<-tapply(THBW_egg_noRep[[trait]], THBW_egg_noRep$sire_P, function(x){sum(!is.na(x))})
-  z_f<-(THBW_egg_noRep[[trait]]-mu_pred)[match(names(z_of), THBW_egg_noRep$bird_id)]
+  z_f<-(THBW_egg_noRep[[trait]]-mu_pred_cond)[match(names(z_of), THBW_egg_noRep$bird_id)]
 
   z_o<-c(z_om, z_of)
   z_p<-c(z_m, z_f)
@@ -173,13 +190,13 @@ for(i in 1:npoints){
 
 pdf(paste0(wd, "Tex/PO_", trait, ".pdf"))
 par(mar=c(5,5,1,1),mfrow=c(2,1))
-hist(THBW_egg_noRep[[trait]]-mu_pred, col="grey",main="", xlab=paste(trait), breaks=30)
+hist(THBW_egg_noRep[[trait]]-mu_pred_cond, col="grey",main="", xlab=paste(trait), breaks=30)
 
-plot(I(0.5*Eg_p)~pred_points, xlim=range(THBW_egg_noRep[[trait]]-mu_pred), ylim=range(z_o), type="l", xlab="Parent", ylab="Offspring", lwd=2, col="red")
+plot(I(0.5*Eg_p+mskt(dp=e_st$fixed_st))~pred_points, xlim=range(THBW_egg_noRep[[trait]]-mu_pred_cond), ylim=range(z_o), type="l", xlab="Parent", ylab="Offspring", lwd=2, col="red")
 
 points(z_o~z_p, col=c("black", "grey")[(z_p==min(z_p))+1])
 
-mt<-lm(z_o~offset((0.5*Eg_p)[match(z_p, pred_points)]), weights=1/sqrt(z_n), subset=!is.na(z_p) & z_p>min(z_p))
+mt<-lm(z_o~offset((0.5*Eg_p+dp2cp(e_st$fixed_st, "ST")["mean"])[match(z_p, pred_points)]), weights=1/sqrt(z_n), subset=!is.na(z_p) & z_p>min(z_p))
 m1<-lm(z_o~z_p, weights=1/sqrt(z_n), subset=!is.na(z_p) & z_p>min(z_p))           # & y_p>15 
 
 z_pred<-predict(m1, newdata=list(z_p=pred_points), interval="confidence")
