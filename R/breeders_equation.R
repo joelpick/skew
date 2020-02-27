@@ -35,15 +35,12 @@ S_T <- mean(THBW$tarsus_mm[THBW$recruit]) - mean(THBW$tarsus_mm)
 h2_T <- modT$vars_mean["mod_egg_A","animal"]/sum(c(modT$vars_mean["mod_egg_A",],modT$fixed_var["mod_egg_A"]))
 #var(THBW$tarsus_mm)
 
-S_W <- mean(THBW$weight_g[THBW$recruit]) - mean(THBW$weight_g)
+S_M <- mean(THBW$weight_g[THBW$recruit]) - mean(THBW$weight_g)
 
-h2_W <- modM$vars_mean["mod_egg_A","animal"]/sum(c(modM$vars_mean["mod_egg_A",],modM$fixed_var["mod_egg_A"]))
-
-
-S*h2
+h2_M <- modM$vars_mean["mod_egg_A","animal"]/sum(c(modM$vars_mean["mod_egg_A",],modM$fixed_var["mod_egg_A"]))
 
 
-skewModT
+
 
 load(file=paste0(data_wd,"stan_summary_data.Rdata"))
 
@@ -52,14 +49,14 @@ S_normal_T <- S_normal
 S_skew_T <- S_skew
 
 load(file=paste0(data_wd,"selection_gradient_weight_gC_20200110_1433.Rdata"))
-S_normal_W <- S_normal
-S_skew_W <- S_skew
+S_normal_M <- S_normal
+S_skew_M <- S_skew
 
 mean_CI <- function(x) c(mean(x),quantile(x, c(0.025,0.975)))
 
 Tarsus <- rbind(Breeders = c(S_T*h2_T,NA,NA),rbind(Skew=mean_CI(S_skew_T),Normal=mean_CI(S_normal_T),Difference=mean_CI(S_skew_T-S_normal_T))* skewModPed_T$var["A",1])
 
-Weight <- rbind(Breeders = c(S_W*h2_W,NA,NA),rbind(Skew=mean_CI(S_skew_W),Normal=mean_CI(S_normal_W),Difference=mean_CI(S_skew_W-S_normal_W)) * 0.2127457)
+Weight <- rbind(Breeders = c(S_M*h2_M,NA,NA),rbind(Skew=mean_CI(S_skew_M),Normal=mean_CI(S_normal_M),Difference=mean_CI(S_skew_M-S_normal_M)) * skewModPed_M$var["A",1])
 
 blankPlot <- function(ylim=c(-1,1),xlim=c(-1,1)) {
 	op <- par(mar=c(0,0,0,0))
