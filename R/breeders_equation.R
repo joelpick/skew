@@ -11,14 +11,13 @@ if(Sys.info()["user"]=="jhadfiel"){
 }
 # source(paste0(wd,"functions.R"))
 
-wd <- "~/Dropbox/0_blue_tits/skew/"
-data_wd <- "~/Dropbox/0_blue_tits/skew/Data/Intermediate/"
+data_wd <- paste0(wd,"Data/Intermediate/")
 plot_wd <- "~/Dropbox/0_Presentations/images/"
 
 
-load(paste0(wd,"Data/Intermediate/chick_data.Rdata"))
+load(paste0(data_wd,"chick_data.Rdata"))
 
-load(paste0(wd,"Data/Intermediate/dam_sire_egg.Rdata"))
+load(paste0(data_wd,"dam_sire_egg.Rdata"))
 
 
 tBIRDS <- read.csv(paste0(wd,"Data/Raw/tBIRDS.csv"))
@@ -34,6 +33,7 @@ THBW$fledge <- is.na(tBIRDS$max_death_date[match(THBW$bird_id , tBIRDS$bird_id)]
 S_T <- mean(THBW$tarsus_mm[THBW$recruit]) - mean(THBW$tarsus_mm)
 
 h2_T <- modT$vars_mean["mod_egg_A","animal"]/sum(c(modT$vars_mean["mod_egg_A",],modT$fixed_var["mod_egg_A"]))
+#var(THBW$tarsus_mm)
 
 S_W <- mean(THBW$weight_g[THBW$recruit]) - mean(THBW$weight_g)
 
@@ -42,7 +42,7 @@ h2_W <- modM$vars_mean["mod_egg_A","animal"]/sum(c(modM$vars_mean["mod_egg_A",],
 
 S*h2
 
-skewModPed_T
+
 skewModT
 
 load(file=paste0(data_wd,"stan_summary_data.Rdata"))
@@ -57,7 +57,7 @@ S_skew_W <- S_skew
 
 mean_CI <- function(x) c(mean(x),quantile(x, c(0.025,0.975)))
 
-Tarsus <- rbind(Breeders = c(S_T*h2_T,NA,NA),rbind(Skew=mean_CI(S_skew_T),Normal=mean_CI(S_normal_T),Difference=mean_CI(S_skew_T-S_normal_T))* 0.1717460)
+Tarsus <- rbind(Breeders = c(S_T*h2_T,NA,NA),rbind(Skew=mean_CI(S_skew_T),Normal=mean_CI(S_normal_T),Difference=mean_CI(S_skew_T-S_normal_T))* skewModPed_T$var["A",1])
 
 Weight <- rbind(Breeders = c(S_W*h2_W,NA,NA),rbind(Skew=mean_CI(S_skew_W),Normal=mean_CI(S_normal_W),Difference=mean_CI(S_skew_W-S_normal_W)) * 0.2127457)
 
@@ -83,8 +83,8 @@ effectPlot <- function(x, y=NULL, xlab="", ylab= "", xlim=NULL, col="black", cex
 }
 cex.axis=1.5
 
-setEPS()
-pdf(paste0(plot_wd,"skew_day15_results6.pdf"), height=8, width=5)
+#setEPS()
+#pdf(paste0(plot_wd,"skew_day15_results6.pdf"), height=8, width=5)
 {
 layout(matrix(1:3,ncol=1,byrow=TRUE), height=c(2,rep(4,2)))
 par(mar=c(0,0,0,0))
@@ -93,4 +93,4 @@ par(mar=c(3,7,0,1),cex.axis=cex.axis, cex.lab=2)
 effectPlot(Tarsus, xlim=c(-0.01,0.1))
 effectPlot(Weight, xlim=c(-0.01,0.1), col=2)
 }
-dev.off()
+#dev.off()

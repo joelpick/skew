@@ -8,11 +8,16 @@ library(rstan)
 rstan_options(auto_write = TRUE)
 # options(mc.cores = parallel::detectCores())
 parallel::detectCores(logical = FALSE)
-wd <- "~/Dropbox/0_blue_tits/skew"
-source(paste0(wd,"/R/functions.R"))
-load(paste0(wd,"/Data/Intermediate/chick_data.Rdata"))
+if(Sys.info()["user"]=="jhadfiel"){
+	wd <- "..."
+}else{
+	wd <- "~/Dropbox/0_blue_tits/skew/"
+}
 
-load(paste0(wd,"/Data/Intermediate/stan_summary_data.Rdata"))
+source(paste0(wd,"R/functions.R"))
+load(paste0(wd,"Data/Intermediate/chick_data.Rdata"))
+
+load(paste0(wd,"Data/Intermediate/stan_summary_data.Rdata"))
 
 # rskt <- function(n,mu,sigma,alpha,nu){
 # 	delta <- alpha/sqrt(1+alpha^2)
@@ -87,7 +92,7 @@ out_R_N <- mclapply(1:100,function(i){
 	print(i)
 	return(out)
 }, mc.cores = 7)
-save(out_R_N,file= paste0(wd,"/Data/Intermediate/MP_sims_N.Rdata"))
+save(out_R_N,file= paste0(wd,"Data/Intermediate/MP_sims_N.Rdata"))
 
 ## residual level - skew
 
@@ -98,7 +103,7 @@ out_R_S <- mclapply(1:100,function(i){
 	print(i)
 	return(out)
 }, mc.cores = 7)
-save(out_R_S,file= paste0(wd,"/Data/Intermediate/MP_sims_S.Rdata"))
+save(out_R_S,file= paste0(wd,"Data/Intermediate/MP_sims_S.Rdata"))
 
 ## residual level - skew - homogenous var
 
@@ -109,7 +114,7 @@ out_R_S_hom <- mclapply(1:100,function(i){
 	print(i)
 	return(out)
 }, mc.cores = 7)
-save(out_R_S_hom,file= paste0(wd,"/Data/Intermediate/MP_sims_S_hom.Rdata"))
+save(out_R_S_hom,file= paste0(wd,"Data/Intermediate/MP_sims_S_hom.Rdata"))
 
 ## residual level - skew - homogenous MEANS
 
@@ -120,7 +125,7 @@ out_R_S_homM <-  mclapply(1:100,function(i){
 	print(i)
 	return(out)
 }, mc.cores = 7)	
-save(out_R_S_homM,file= paste0(wd,"/Data/Intermediate/MP_sims_S_homM.Rdata"))
+save(out_R_S_homM,file= paste0(wd,"Data/Intermediate/MP_sims_S_homM.Rdata"))
 
 
 
@@ -150,10 +155,10 @@ stanModel_RE <- stan_model(file = paste0(wd,"/stan/skew_t_PSY_RE_reparam.stan"))
 
 
 
-load(file= paste0(wd,"/Data/Intermediate/MP_sims_N.Rdata"))
-load(file= paste0(wd,"/Data/Intermediate/MP_sims_S.Rdata"))
-load(file= paste0(wd,"/Data/Intermediate/MP_sims_S_hom.Rdata"))
-load(file= paste0(wd,"/Data/Intermediate/MP_sims_S_homM.Rdata"))
+load(file= paste0(wd,"Data/Intermediate/MP_sims_N.Rdata"))
+load(file= paste0(wd,"Data/Intermediate/MP_sims_S.Rdata"))
+load(file= paste0(wd,"Data/Intermediate/MP_sims_S_hom.Rdata"))
+load(file= paste0(wd,"Data/Intermediate/MP_sims_S_homM.Rdata"))
 
 out1 <- array(do.call(c,out_R_N), dim = c(10, 6, 100))
 out2 <- array(do.call(c,out_R_S), dim = c(10, 6, 100))
