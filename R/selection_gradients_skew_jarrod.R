@@ -189,11 +189,16 @@ for(i in 1:n_it){
 
 stop()
 
+<<<<<<< HEAD
 if(save){
 	save(beta_skew,beta_normal, s_skew, int_opt, file=paste0(wd,"Data/Intermediate/selection_gradient_",if(is.null(by)){""}else{"by_"}, trait,"_",format(Sys.time(), "%Y%m%d_%H%M"),".Rdata"))
 }
 
 load(paste0(wd,"Data/Intermediate/selection_gradient_",if(is.null(by)){""}else{"by_"}, trait,"_",format(Sys.time(), "%Y%m%d_%H%M"),".Rdata"))
+=======
+load(paste0(wd,"Data/Intermediate/selection_gradient_by_tarsus_mm_20200225_2014.Rdata"))
+
+>>>>>>> e8009c2d420a9a1d12b51e286c961186d1371cba
 beta_skew<-rowMeans(beta_skew)
 beta_normal<-rowMeans(beta_normal)
 s_skew<-rowMeans(s_skew)
@@ -218,6 +223,8 @@ hist(beta_normal-beta_skew, breaks=50)
 sum(beta_skew<beta_normal)/n_it
 sum(beta_skew<0)/n_it
 sum(beta_normal<0)/n_it
+
+S<-mean(tapply(THBW$tarsus_mmC[which(THBW$recruit)], THBW$category[which(THBW$recruit)], mean)-tapply(THBW$tarsus_mmC, THBW$category, mean), na.rm=TRUE)
 
 
 par(mfrow=c(3,1))

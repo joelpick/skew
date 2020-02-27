@@ -72,12 +72,15 @@ e_st<-list(
   e_st=residD[,1],
   fixed_st=fixedD
 )
-
-
 # list of environmental distribution parameters: xi, omega, alpha, nu
 
 g_st=c(0, geneD, 0, Inf)
 # list of genetic distribution parameters: xi, omega, alpha, nu
+
+Vp<-sum(unlist(lapply(e_st, function(x){dp2cp(x, family="ST")["s.d."]^2})))+geneD^2
+
+h2<-(geneD^2)/Vp
+
 
 
 conv<-function(par, z_p, g_st, e_st){
