@@ -84,7 +84,7 @@ conv<-function(par, z_p, g_st, e_st){
 
   ################################################################
   #   Function for obtaining the integrand in the convolution    #
-  #             \int Pr(z_p-g_p)Pr(g_p) dg_p                     #
+  #      \int Pr(z_p-e_p | \theta_g)*Pr(e_p| \theta_e) de_p      #
   #    the distribution of genetic and environmental effects     #
   #          are passed as parameters of the skew-t              #
   ################################################################
@@ -92,13 +92,13 @@ conv<-function(par, z_p, g_st, e_st){
   if(length(par)!=length(e_st)){stop("par should be of length 2")}
 
   res<-dst(z_p-sum(par), dp=g_st)
-  # Pr(z_p-e_p | \theta_g) = Pr(g_p | \theta_g)
+  # Pr(z_p-e_p | \theta_g)
 
   for(i in 1:length(e_st)){
      res<-res*dst(par[i], dp=e_st[[i]])
   }
 
-  # Pr(g_p | \theta_g)*Pr(e_p| \theta_e) = Pr(g_p | \theta_g)*Pr(z_p-g_p| \theta_e)
+  # Pr(z_p-e_p | \theta_g)*Pr(e_p| \theta_e)
 
   return(res)
 }  
@@ -108,7 +108,7 @@ wconv<-function(par, z_p, g_st, e_st){
 
   #########################################################################
   #   Function for obtaining the integrand in the weighted convolution    #
-  #                 \int g_p*Pr(z_p-g_p)Pr(g_p) dg_p                      #
+  #     \int (z_p-e_p)* Pr(z_p-e_p | \theta_g)*Pr(e_p| \theta_e) de_p     #
   #      the distribution of genetic and environmental effects            #
   #          are passed as parameters of the skew-t                       #
   #########################################################################
@@ -117,11 +117,25 @@ wconv<-function(par, z_p, g_st, e_st){
 
 }
 
+wconv2<-function(par, z_p, g_st, e_st, limit_prob=1e-4){
+
+  #########################################################################
+  #   Function for obtaining the integrand in the weighted convolution    #
+  #     \int (z_p-e_p)* Pr(z_p-e_p | \theta_g)*Pr(e_p| \theta_e) de_p     #
+  #      the distribution of genetic and environmental effects            #
+  #          are passed as parameters of the skew-t                       #
+  #########################################################################
+
+  ((sum(par)-z_p)^2)*conv(par, z_p, g_st, e_st)
+
+}
+
+
 
 POreg<-function(z_p, g_st, e_st, limit_prob=1e-4){
 
   ################################################################
-  #           Function for calculating E[g_p|z_p]                #
+  #      Function for calculating \partial E[g|z] \partial z     #
   #  based on distribution of genetic and environmental effects  #
   #          (passed as parameters of the skew-t)                #
   ################################################################
@@ -131,11 +145,37 @@ POreg<-function(z_p, g_st, e_st, limit_prob=1e-4){
   # lower and upper limits when integrating over environmental effects
 
   Eg_p<-hcubature(wconv, e_llimits, e_ulimits, z_p=z_p, g_st=g_st, e_st=e_st)$integral
-  Eg_p<-Eg_p/hcubature(conv, e_llimits, e_ulimits, z_p=z_p, g_st=g_st, e_st=e_st)$integral
+  Eg_p<-0.5*Eg_p/hcubature(conv, e_llimits, e_ulimits, z_p=z_p, g_st=g_st, e_st=e_st)$integral
+  Eg_p<-Eg_p+0.5*dp2cp(g_st, family="ST")[1]+sum(unlist(lapply(e_st, function(x){dp2cp(x, family="ST")[1]})))
+
 
   return(Eg_p)
 }
 
+
+dPOreg<-function(z_p, g_st, e_st, limit_prob=1e-4){
+
+  ################################################################
+  #               Function for calculating E[g|z]                #
+  #  based on distribution of genetic and environmental effects  #
+  #          (passed as parameters of the skew-t)                #
+  ################################################################
+
+  e_llimits<-unlist(lapply(e_st, function(x){qst(limit_prob, dp=x)}))
+  e_ulimits<-unlist(lapply(e_st, function(x){qst(1-limit_prob, dp=x)}))
+  # lower and upper limits when integrating over environmental effects
+
+
+  c1<-hcubature(conv, e_llimits, e_ulimits, z_p=z_p, g_st=g_st, e_st=e_st)$integral
+  c2<-hcubature(wconv, e_llimits, e_ulimits, z_p=z_p, g_st=g_st, e_st=e_st)$integral
+  c3<-hcubature(wconv2, e_llimits, e_ulimits, z_p=z_p, g_st=g_st, e_st=e_st)$integral
+
+  Egp2<-(0.5*c2/c1)^2
+
+  dEg_p <- 1+(Egp2-c3/c1)/(g_st[2]^2)
+
+  return(dEg_p)
+}
 
 if(simulate){
 
@@ -183,6 +223,15 @@ pred_points<-sort(z_p)[seq(1, length(z_p), length(z_p)/npoints)]
 
 Eg_p<-1:npoints
 
+stop()
+z_p<-seq(0, length=1)
+
+Egp<-sapply(z_p, POreg, g_st=g_st, e_st=e_st)
+dEgp<-sapply(z_p, dPOreg, g_st=g_st, e_st=e_st)
+
+dPOreg(z_p, g_st=g_st, e_st=e_st)
+
+
 for(i in 1:npoints){
   Eg_p[i] <- POreg(z_p=pred_points[i], g_st=g_st, e_st=e_st)
 } 
@@ -192,11 +241,11 @@ pdf(paste0(wd, "Tex/PO_", trait, ".pdf"))
 par(mar=c(5,5,1,1),mfrow=c(2,1))
 hist(THBW_egg_noRep[[trait]]-mu_pred_cond, col="grey",main="", xlab=paste(trait), breaks=30)
 
-plot(I(0.5*Eg_p+mskt(dp=e_st$fixed_st))~pred_points, xlim=range(THBW_egg_noRep[[trait]]-mu_pred_cond), ylim=range(z_o), type="l", xlab="Parent", ylab="Offspring", lwd=2, col="red")
+plot(Eg_p~pred_points, xlim=range(THBW_egg_noRep[[trait]]-mu_pred_cond), ylim=range(z_o), type="l", xlab="Parent", ylab="Offspring", lwd=2, col="red")
 
 points(z_o~z_p, col=c("black", "grey")[(z_p==min(z_p))+1])
 
-mt<-lm(z_o~offset((0.5*Eg_p+dp2cp(e_st$fixed_st, "ST")["mean"])[match(z_p, pred_points)]), weights=1/sqrt(z_n), subset=!is.na(z_p) & z_p>min(z_p))
+mt<-lm(z_o~I(offset(Eg_p)[match(z_p, pred_points)]), weights=1/sqrt(z_n), subset=!is.na(z_p) & z_p>min(z_p))
 m1<-lm(z_o~z_p, weights=1/sqrt(z_n), subset=!is.na(z_p) & z_p>min(z_p))           # & y_p>15 
 
 z_pred<-predict(m1, newdata=list(z_p=pred_points), interval="confidence")

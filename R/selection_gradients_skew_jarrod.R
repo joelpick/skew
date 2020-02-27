@@ -15,9 +15,9 @@ if(Sys.info()["user"]=="jhadfiel"){
 }
 
 trait<-"weight_g"
-posterior_mean<-FALSE
+save<-FALSE
+posterior_mean<-TRUE
 by<-c("year", "sex")
-by<-NULL
 
 load(paste0(wd,"Data/Intermediate/day15_survival_models_bv.Rdata"))
 
@@ -187,8 +187,13 @@ for(i in 1:n_it){
 	print(i)
 }
 
-save(beta_skew,beta_normal, s_skew, int_opt, file=paste0(wd,"Data/Intermediate/selection_gradient_",if(is.null(by)){""}else{"by_"}, trait,"_",format(Sys.time(), "%Y%m%d_%H%M"),".Rdata"))
+stop()
 
+if(save){
+	save(beta_skew,beta_normal, s_skew, int_opt, file=paste0(wd,"Data/Intermediate/selection_gradient_",if(is.null(by)){""}else{"by_"}, trait,"_",format(Sys.time(), "%Y%m%d_%H%M"),".Rdata"))
+}
+
+load(paste0(wd,"Data/Intermediate/selection_gradient_",if(is.null(by)){""}else{"by_"}, trait,"_",format(Sys.time(), "%Y%m%d_%H%M"),".Rdata"))
 beta_skew<-rowMeans(beta_skew)
 beta_normal<-rowMeans(beta_normal)
 s_skew<-rowMeans(s_skew)
