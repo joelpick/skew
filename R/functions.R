@@ -306,7 +306,209 @@ make_stan_dat <- function(fixed, random, pedigree=NULL, data){
 	return(stan_dat)
 }
 
-
-
 mean_CI <- function(x) c(mean(x),quantile(x, c(0.025,0.975)))
+
+bin <- function(x, n=10){
+	breaks<-seq(min(x, na.rm=TRUE),max(x, na.rm=TRUE)*1.0001,length.out=n+1)
+	xCat <- min(breaks) + (abs(breaks[2]-breaks[1]))*sapply(x,function(y) sum(y>=breaks)-0.5)
+	xCat
+}
+
+binPlot <- function(formula,data,text.cex=1,...){
+	bindedMeans<- aggregate(formula,data,mean)
+	bindedCounts<- aggregate(formula,data,length)
+	plot(formula,bindedMeans, pch=19,...)
+	text(formula,bindedMeans, bindedCounts[,2], pos=3,cex=text.cex)
+}
+
+
+comp_skt<-function(x, dp, breaks="Sturges", ...){
+
+
+  ################################################################
+  #           Function for plotting a histogram of x             #
+  #  and overlaying a skew-t density function with parameters dp #
+  ################################################################
+
+  plot.points<-hist(x, breaks=breaks)
+
+  plot.points$breaks[1]<--Inf
+  plot.points$breaks[length(plot.points$breaks)]<-Inf
+
+  pz<-diff(pst(plot.points$breaks, dp=dp))
+
+  lines(pz*sum(!is.na(mu_pred))~plot.points$mids, ...)
+
+} 
+
+conv<-function(par, z_p, g_st, e_st){
+
+  ################################################################
+  #   Function for obtaining the integrand in the convolution    #
+  #      \int Pr(z_p-e_p | \theta_g)*Pr(e_p| \theta_e) de_p      #
+  #    the distribution of genetic and environmental effects     #
+  #          are passed as parameters of the skew-t              #
+  ################################################################
+
+  if(length(par)!=length(e_st)){stop("par should be of length 2")}
+
+  res<-dst(z_p-sum(par), dp=g_st)
+  # Pr(z_p-e_p | \theta_g)
+
+  for(i in 1:length(e_st)){
+     res<-res*dst(par[i], dp=e_st[[i]])
+  }
+
+  # Pr(z_p-e_p | \theta_g)*Pr(e_p| \theta_e)
+
+  return(res)
+}  
+
+
+wconv<-function(par, z_p, g_st, e_st){
+
+  #########################################################################
+  #   Function for obtaining the integrand in the weighted convolution    #
+  #     \int (z_p-e_p)* Pr(z_p-e_p | \theta_g)*Pr(e_p| \theta_e) de_p     #
+  #      the distribution of genetic and environmental effects            #
+  #          are passed as parameters of the skew-t                       #
+  #########################################################################
+
+  (z_p-sum(par))*conv(par, z_p, g_st, e_st)
+
+}
+
+wconv2<-function(par, z_p, g_st, e_st, limit_prob=1e-4){
+
+  #########################################################################
+  #   Function for obtaining the integrand in the weighted convolution    #
+  #    \int (z_p-e_p)^2* Pr(z_p-e_p | \theta_g)*Pr(e_p| \theta_e) de_p    #
+  #      the distribution of genetic and environmental effects            #
+  #          are passed as parameters of the skew-t                       #
+  #########################################################################
+
+  ((z_p-sum(par))^2)*conv(par, z_p, g_st, e_st)
+
+}
+
+
+dz<-function(z_p, g_st, e_st, limit_prob=1e-4){
+
+  ################################################################
+  #               Function for calculating Pr(z)                 #
+  #  based on distribution of genetic and environmental effects  #
+  #          (passed as parameters of the skew-t)                #
+  ################################################################
+
+  e_llimits<-unlist(lapply(e_st, function(x){qst(limit_prob, dp=x)}))
+  e_ulimits<-unlist(lapply(e_st, function(x){qst(1-limit_prob, dp=x)}))
+  # lower and upper limits when integrating over environmental effects
+
+  dz<-hcubature(conv, e_llimits, e_ulimits, z_p=z_p, g_st=g_st, e_st=e_st)$integral
+
+  return(dz)
+}
+
+POreg<-function(z_p, g_st, e_st, limit_prob=1e-4){
+
+  ################################################################
+  #               Function for calculating E[g|z]                #
+  #  based on distribution of genetic and environmental effects  #
+  #          (passed as parameters of the skew-t)                #
+  ################################################################
+
+  e_llimits<-unlist(lapply(e_st, function(x){qst(limit_prob, dp=x)}))
+  e_ulimits<-unlist(lapply(e_st, function(x){qst(1-limit_prob, dp=x)}))
+  # lower and upper limits when integrating over environmental effects
+
+  Eg_p<-hcubature(wconv, e_llimits, e_ulimits, z_p=z_p, g_st=g_st, e_st=e_st)$integral
+  Eg_p<-0.5*Eg_p/hcubature(conv, e_llimits, e_ulimits, z_p=z_p, g_st=g_st, e_st=e_st)$integral
+
+  return(Eg_p)
+}
+
+
+dPOreg<-function(z_p=NULL, g_st=NULL, e_st=NULL, Eg_p=NULL, limit_prob=1e-4){
+
+  ################################################################
+  #      Function for calculating \partial E[g|z] \partial z     #
+  #  based on distribution of genetic and environmental effects  #
+  #          (passed as parameters of the skew-t)                #
+  ################################################################
+
+  e_llimits<-unlist(lapply(e_st, function(x){qst(limit_prob, dp=x)}))
+  e_ulimits<-unlist(lapply(e_st, function(x){qst(1-limit_prob, dp=x)}))
+  # lower and upper limits when integrating over environmental effects
+
+  if(is.null(Eg_p)){
+     Eg_p<-hcubature(wconv, e_llimits, e_ulimits, z_p=z_p, g_st=g_st, e_st=e_st)$integral
+     Eg_p2<-hcubature(wconv2, e_llimits, e_ulimits, z_p=z_p, g_st=g_st, e_st=e_st)$integral
+     E_p<-hcubature(conv, e_llimits, e_ulimits, z_p=z_p, g_st=g_st, e_st=e_st)$integral
+     Eg_p<-Eg_p/E_p
+     Eg_p2<-Eg_p2/E_p
+  }else{
+    Eg_p<-2*Eg_p
+    Eg_p2<-hcubature(wconv2, e_llimits, e_ulimits, z_p=z_p, g_st=g_st, e_st=e_st)$integral
+    Eg_p2<-Eg_p2/hcubature(conv, e_llimits, e_ulimits, z_p=z_p, g_st=g_st, e_st=e_st)$integral
+  }
+  dEg_p <- 0.5*(1+(Eg_p^2-Eg_p2)/(g_st[2]^2))
+
+  return(dEg_p)
+}
+
+cmvnorm<-function(mean=NULL, sigma=NULL, cond=NULL, df=NULL, keep_var, cond_var=NULL){
+
+	if(!is.null(df)){
+		mean <- colMeans(df)
+		sigma <- cov(df)
+		cond <- df
+	}else{
+		if(is.null(mean)){stop("mean needs to be specified if data.frame not passed in 'df'")}
+		if(is.null(sigma)){stop("sigma needs to be specified if data.frame not passed in 'df'")}
+		if(is.null(cond)){stop("cond needs to be specified if data.frame not passed in 'df'")}
+	}	
+	cV <- sigma[keep_var,keep_var]-sigma[keep_var, -keep_var]%*%solve(sigma[-keep_var, -keep_var])%*%sigma[-keep_var, keep_var]
+	if(length(dim(cond))==2){
+ 		cM <- sapply(1:nrow(cond), function(x) mean[keep_var]+sigma[keep_var, -keep_var]%*%solve(sigma[-keep_var, -keep_var])%*%(cond[x,]-mean)[-keep_var])
+ 	}else{
+ 		cM <- mean[keep_var]+sigma[keep_var, -keep_var]%*%solve(sigma[-keep_var, -keep_var])%*%(cond-mean)[-keep_var]
+ 	}	
+ 	return(list(cM=cM, cV=cV))
+}
+
+w_func<-function(z, mu_etaz, V_etaz, beta, gamma,  V_nest){
+
+	g_s<-cmvnorm(mean=mu_etaz, sigma=V_etaz, cond=c(NA,NA, z), keep_var=1:2, cond_var=3)$cM+beta*z+gamma*z^2
+    V_s<-cmvnorm(mean=mu_etaz, sigma=V_etaz, cond=c(NA,NA, z), keep_var=1:2, cond_var=3)$cV+V_nest+diag(2)
+
+	return(pmvnorm(lower=c(0,0), mean=c(g_s), sigma=V_s))
+}
+
+w_func_norm<-function(z, mu_etaz, V_etaz, beta, gamma,  V_nest){
+
+	w_func(z, mu_etaz, V_etaz, beta, gamma,  V_nest)*dnorm(z, mu_etaz[3], sqrt(V_etaz[3,3]))
+}
+w_func_norm<-Vectorize(w_func_norm, "z")
+
+wD_func<-function(z, mu_etaz, V_etaz, beta, gamma,  V_nest){
+
+	g_s<-cmvnorm(mean=mu_etaz, sigma=V_etaz, cond=c(NA,NA, z), keep_var=1:2, cond_var=3)$cM+beta*z+gamma*z^2
+    V_s<-cmvnorm(mean=mu_etaz, sigma=V_etaz, cond=c(NA,NA, z), keep_var=1:2, cond_var=3)$cV+V_nest+diag(2)
+
+    g_sc<-g_s[1]-cmvnorm(mean=c(0,0), sigma=V_s, cond=c(g_s), keep_var=1, cond_var=2)$cM
+
+	V_sc<-cmvnorm(mean=c(0,0), sigma=V_s, cond=c(g_s), keep_var=1, cond_var=2)$cV
+
+    ch1<-dnorm(g_sc[1], 0, sqrt(V_sc))*pnorm(g_s[2], 0, sqrt(V_s[2,2]))*(V_etaz[1,3]/V_etaz[3,3]+beta[1]+2*gamma[1]*z-(V_s[1,2]/V_s[2,2])*(V_etaz[2,3]/V_etaz[3,3]+beta[2]+2*gamma[2]*z))
+    ch2<-pnorm(g_sc[1], 0, sqrt(V_sc))*dnorm(g_s[2], 0, sqrt(V_s[2,2]))*(V_etaz[2,3]/V_etaz[3,3]+beta[2]+2*gamma[2]*z)
+
+    return(ch1+ch2)
+}
+
+wD_func_norm<-function(z, mu_etaz, V_etaz, beta, gamma,  V_nest){
+
+	wD_func(z, mu_etaz, V_etaz, beta, gamma,  V_nest)*dnorm(z, mu_etaz[3], sqrt(V_etaz[3,3]))
+}
+wD_func_norm<-Vectorize(wD_func_norm, "z")
+
 

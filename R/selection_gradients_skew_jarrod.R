@@ -1,18 +1,20 @@
 rm(list=ls())
 
+# source("~/Work/Skew/R/selection_gradients_skew_jarrod.R")
+
 options(width=Sys.getenv("COLUMNS"), stringsAsFactors=FALSE)
 
 library(MCMCglmm)
 library(MASS)
 library(mvtnorm)
-library(doppelgangR)
 
-# source("~/Work/Skew/R/selection_gradients_skew_jarrod.R")
 if(Sys.info()["user"]=="jhadfiel"){
 	wd <- "~/Work/Skew/"
 }else{
 	wd <- "~/Dropbox/0_blue_tits/skew/"
 }
+
+source(paste0(wd,"R/functions.R"))
 
 trait<-"weight_g"
 save<-FALSE
@@ -35,75 +37,6 @@ if(is.null(by)){
 }else{
 	THBW$category <- as.factor(apply(THBW[,by], 1, paste, collapse=""))
 }
-
-bin <- function(x, n=10){
-	breaks<-seq(min(x, na.rm=TRUE),max(x, na.rm=TRUE)*1.0001,length.out=n+1)
-	xCat <- min(breaks) + (abs(breaks[2]-breaks[1]))*sapply(x,function(y) sum(y>=breaks)-0.5)
-	xCat
-}
-
-binPlot <- function(formula,data,text.cex=1,...){
-	bindedMeans<- aggregate(formula,data,mean)
-	bindedCounts<- aggregate(formula,data,length)
-	plot(formula,bindedMeans, pch=19,...)
-	text(formula,bindedMeans, bindedCounts[,2], pos=3,cex=text.cex)
-}
-
-cmvnorm<-function(mean=NULL, sigma=NULL, cond=NULL, df=NULL, keep_var, cond_var=NULL){
-
-	if(!is.null(df)){
-		mean <- colMeans(df)
-		sigma <- cov(df)
-		cond <- df
-	}else{
-		if(is.null(mean)){stop("mean needs to be specified if data.frame not passed in 'df'")}
-		if(is.null(sigma)){stop("sigma needs to be specified if data.frame not passed in 'df'")}
-		if(is.null(cond)){stop("cond needs to be specified if data.frame not passed in 'df'")}
-	}	
-	cV <- sigma[keep_var,keep_var]-sigma[keep_var, -keep_var]%*%solve(sigma[-keep_var, -keep_var])%*%sigma[-keep_var, keep_var]
-	if(length(dim(cond))==2){
- 		cM <- sapply(1:nrow(cond), function(x) mean[keep_var]+sigma[keep_var, -keep_var]%*%solve(sigma[-keep_var, -keep_var])%*%(cond[x,]-mean)[-keep_var])
- 	}else{
- 		cM <- mean[keep_var]+sigma[keep_var, -keep_var]%*%solve(sigma[-keep_var, -keep_var])%*%(cond-mean)[-keep_var]
- 	}	
- 	return(list(cM=cM, cV=cV))
-}
-
-w_func<-function(z, mu_etaz, V_etaz, beta, gamma,  V_nest){
-
-	g_s<-cmvnorm(mean=mu_etaz, sigma=V_etaz, cond=c(NA,NA, z), keep_var=1:2, cond_var=3)$cM+beta*z+gamma*z^2
-    V_s<-cmvnorm(mean=mu_etaz, sigma=V_etaz, cond=c(NA,NA, z), keep_var=1:2, cond_var=3)$cV+V_nest+diag(2)
-
-	return(pmvnorm(lower=c(0,0), mean=c(g_s), sigma=V_s))
-}
-
-w_func_norm<-function(z, mu_etaz, V_etaz, beta, gamma,  V_nest){
-
-	w_func(z, mu_etaz, V_etaz, beta, gamma,  V_nest)*dnorm(z, mu_etaz[3], sqrt(V_etaz[3,3]))
-}
-w_func_norm<-Vectorize(w_func_norm, "z")
-
-wD_func<-function(z, mu_etaz, V_etaz, beta, gamma,  V_nest){
-
-	g_s<-cmvnorm(mean=mu_etaz, sigma=V_etaz, cond=c(NA,NA, z), keep_var=1:2, cond_var=3)$cM+beta*z+gamma*z^2
-    V_s<-cmvnorm(mean=mu_etaz, sigma=V_etaz, cond=c(NA,NA, z), keep_var=1:2, cond_var=3)$cV+V_nest+diag(2)
-
-    g_sc<-g_s[1]-cmvnorm(mean=c(0,0), sigma=V_s, cond=c(g_s), keep_var=1, cond_var=2)$cM
-
-	V_sc<-cmvnorm(mean=c(0,0), sigma=V_s, cond=c(g_s), keep_var=1, cond_var=2)$cV
-
-    ch1<-dnorm(g_sc[1], 0, sqrt(V_sc))*pnorm(g_s[2], 0, sqrt(V_s[2,2]))*(V_etaz[1,3]/V_etaz[3,3]+beta[1]+2*gamma[1]*z-(V_s[1,2]/V_s[2,2])*(V_etaz[2,3]/V_etaz[3,3]+beta[2]+2*gamma[2]*z))
-    ch2<-pnorm(g_sc[1], 0, sqrt(V_sc))*dnorm(g_s[2], 0, sqrt(V_s[2,2]))*(V_etaz[2,3]/V_etaz[3,3]+beta[2]+2*gamma[2]*z)
-
-    return(ch1+ch2)
-}
-
-wD_func_norm<-function(z, mu_etaz, V_etaz, beta, gamma,  V_nest){
-
-	wD_func(z, mu_etaz, V_etaz, beta, gamma,  V_nest)*dnorm(z, mu_etaz[3], sqrt(V_etaz[3,3]))
-}
-wD_func_norm<-Vectorize(wD_func_norm, "z")
-
 
 beta_pos<-grep(paste0(trait, "C:|", trait, "C$"), colnames(model$Sol))
 gamma_pos<-grep(paste0(trait, "C2:|", trait, "C2$"), colnames(model$Sol))
@@ -189,16 +122,11 @@ for(i in 1:n_it){
 
 stop()
 
-<<<<<<< HEAD
+
 if(save){
 	save(beta_skew,beta_normal, s_skew, int_opt, file=paste0(wd,"Data/Intermediate/selection_gradient_",if(is.null(by)){""}else{"by_"}, trait,"_",format(Sys.time(), "%Y%m%d_%H%M"),".Rdata"))
 }
 
-load(paste0(wd,"Data/Intermediate/selection_gradient_",if(is.null(by)){""}else{"by_"}, trait,"_",format(Sys.time(), "%Y%m%d_%H%M"),".Rdata"))
-=======
-load(paste0(wd,"Data/Intermediate/selection_gradient_by_tarsus_mm_20200225_2014.Rdata"))
-
->>>>>>> e8009c2d420a9a1d12b51e286c961186d1371cba
 beta_skew<-rowMeans(beta_skew)
 beta_normal<-rowMeans(beta_normal)
 s_skew<-rowMeans(s_skew)
