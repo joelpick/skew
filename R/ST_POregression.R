@@ -138,6 +138,9 @@ if(save){
 save(Eg_p,dEg_p, dz_p, dz_p_norm, pred_points, file=paste0(wd,"Data/Intermediate/po_regression_",if(is.null(pred_cond)){""}else{"by_"}, trait,"_",format(Sys.time(), "%Y%m%d_%H%M"),".Rdata"))
 }
 
+# load(paste0(wd,"Data/Intermediate/po_regression_by_weight_g_20200228_1649.Rdata"))
+# load(paste0(wd,"Data/Intermediate/po_regression_by_tarsus_mm_20200228_1708.Rdata"))
+
 mu_eg<-0.5*dp2cp(g_st, family="ST")[1]+sum(unlist(lapply(e_st, function(x){dp2cp(x, family="ST")[1]})))
 mu_eg<-mean(THBW_egg_noRep[[trait]]-mu_pred_cond) # not sure why these differ by so much!
 
