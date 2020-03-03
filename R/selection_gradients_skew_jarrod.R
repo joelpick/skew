@@ -145,8 +145,8 @@ for(i in 1:n_it){
 
 		mu<-dp2cm(z_st, family="ST")
 
-        S<-mean(W*z_sub/mean(W))-mu[1]
-        C<-mean(W*((z_sub-mu[1])^2)/mean(W))-mu[2]
+        S<-mean(W*z_sub/mean(W))-mean(z_sub)
+        C<-mean(W*((z_sub-mean(z_sub))^2)/mean(W))-mu[2]
 
 	    beta1[i,j]<-S/mu[2]  
 	    beta2[i,j]<-betaLA_2(z_st, S=S, C=C, family="ST")
