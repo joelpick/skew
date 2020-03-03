@@ -321,6 +321,70 @@ binPlot <- function(formula,data,text.cex=1,...){
 	text(formula,bindedMeans, bindedCounts[,2], pos=3,cex=text.cex)
 }
 
+pars_ST <- function(model, variable){
+  summary(model)$summary[paste(c("xi","omega", "alpha", "nu"),variable, sep="_"),c(1,4,8)]
+}
+
+pars <- function(model, par){
+  out <- summary(model)$summary
+  out[grep(par, rownames(out)),c(1,4,8)]
+}
+
+ dp2cm<-function(dp, family, object = NULL, cp.type = "proper", upto = NULL){
+
+  ################################################################
+  #  Function for obtaining the mean and 2nd-4th central moments #
+  #  				given the direct parameterisataion 			 #
+  ################################################################
+
+  std_m<-dp2cp(dp=dp, family=family, object = object, cp.type = cp.type, upto = upto)
+  mu = 1:4
+  mu[1] <- std_m[1]
+  mu[2] <- std_m[2]^2
+  mu[3] <- std_m[3]*std_m[2]^(3/2)
+  mu[4] <- std_m[4]*std_m[2]^4
+  return(mu)
+ }
+
+dp2cm<-function(dp, family, object = NULL, cp.type = "proper", upto = NULL){
+
+  ################################################################
+  #           Computes mean and 2nd-4th central moments          #
+  #  		  if dp is a list it is the moments of a sum 		 #
+  ################################################################
+
+  if(!is.list(dp)){
+  	dp<-list(dp)
+  }
+
+  stdm<-lapply(dp, dp2cp, family=family, object = object, cp.type = cp.type, upto = upto)
+
+  cm<-lapply(stdm, function(x){c(x[1], x[2]^2, x[3]*x[2]^3, (x[4]+3)*x[2]^4)})
+
+  mu = 1:4
+
+  mu[1]<-sum(unlist(lapply(cm, function(x){x[1]})))
+  mu[2]<-sum(unlist(lapply(cm, function(x){x[2]})))
+  mu[3]<-sum(unlist(lapply(cm, function(x){x[3]})))
+  # mean and 2nd + 3rd central moments are additive
+
+  # mu[4] = k[4] + 3*mu[2]^2 where k[4] is the fourth cumulamnt of the sum. 
+  # The 4th cumulant of component i is k_i[4] = cm_i[4]-3*cm_i[2]^2
+  # Cumulants are additive so k[4] = sum(cm[4]-3*cm[2]^2)
+
+  mu[4] = sum(unlist(lapply(cm, function(x){x[4]-3*x[2]^2})))+3*mu[2]^2
+
+  return(mu)
+}
+
+
+betaLA_2<-function(dp, S, C, family, object = NULL, cp.type = "proper", upto = NULL){
+
+	mu<-dp2cm(dp, family=family, object = object, cp.type = cp.type, upto = upto)
+
+	return((mu[4]-mu[2]^2)*S-mu[3]*C)/(mu[2]*(mu[4]-mu[2]^2)-mu[3]^2)
+
+}
 
 comp_skt<-function(x, dp, breaks="Sturges", ...){
 

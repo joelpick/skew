@@ -30,37 +30,27 @@ if(Sys.info()["user"]=="jhadfiel"){
   wd <- "~/Dropbox/0_blue_tits/skew/"
 }
 
-pars_ST <- function(model, variable){
-  summary(model)$summary[paste(c("xi","omega", "alpha", "nu"),variable, sep="_"),c(1,4,8)]
-}
-
-pars <- function(model, par){
-  out <- summary(model)$summary
-  out[grep(par, rownames(out)),c(1,4,8)]
-}
 
 source(paste0(wd,"R/functions.R"))
 
 load(paste0(wd,"Data/Intermediate/stan_dam_data.Rdata"))
 
-load(paste0(wd,"Data/Intermediate/day15_survival_models_bv.Rdata"))
-
 if(trait=="tarsus_mm"){
-  model<-get(load(paste0(wd,"Data/Intermediate/stanModTarsus_pedN20191217_1716.Rdata")))
+  model_z<-get(load(paste0(wd,"Data/Intermediate/stanModTarsus_pedN20191217_1716.Rdata")))
 }
 if(trait=="weight_g"){  
-  model<-get(load(paste0(wd,"Data/Intermediate/stanModWeightPedN20191220_0905.Rdata")))
+  model_z<-get(load(paste0(wd,"Data/Intermediate/stanModWeightPedN20191220_0905.Rdata")))
 }
 
 pred_cond_pos<-match(pred_cond, colnames(stan_data_weight$X))
 pred_pos<-match(setdiff(colnames(stan_data_weight$X), pred_cond), colnames(stan_data_weight$X))
 
-mu_pred_cond<-stan_data_weight$X[,pred_cond_pos]%*%pars(model, "beta")[pred_cond_pos,1]
-mu_pred<-stan_data_weight$X[,pred_pos]%*%pars(model, "beta")[pred_pos,1]
+mu_pred_cond<-stan_data_weight$X[,pred_cond_pos]%*%pars(model_z, "beta")[pred_cond_pos,1]
+mu_pred<-stan_data_weight$X[,pred_pos]%*%pars(model_z, "beta")[pred_pos,1]
 
-nestD <- pars_ST(model, "nest")
-residD <- pars_ST(model, if(trait=="weight_g"){"E"}else{"ind"})
-geneD <- pars(model,"_A")[1]
+nestD <- pars_ST(model_z, "nest")
+residD <- pars_ST(model_z, if(trait=="weight_g"){"E"}else{"ind"})
+geneD <- pars(model_z,"_A")[1]
 fixedD<-doppelgangR::st.mle(y = mu_pred)$dp
 names(fixedD)<-paste0(c("xi", "omega", "alpha", "nu"), "_fixed")
 
@@ -75,7 +65,7 @@ e_st<-list(
 )
 # list of environmental distribution parameters: xi, omega, alpha, nu
 
-g_st=c(0, geneD, 0, Inf)
+g_st=c(0, geneD, 0, 1e+16)
 # list of genetic distribution parameters: xi, omega, alpha, nu
 
 
@@ -139,7 +129,10 @@ save(Eg_p,dEg_p, dz_p, dz_p_norm, pred_points, file=paste0(wd,"Data/Intermediate
 }
 
 mu_eg<-0.5*dp2cp(g_st, family="ST")[1]+sum(unlist(lapply(e_st, function(x){dp2cp(x, family="ST")[1]})))
-mu_eg<-mean(THBW_egg_noRep[[trait]]-mu_pred_cond) # not sure why these differ by so much!
+
+mt<-lm(z_o~offset(I(Eg_p)[match(z_p, pred_points)]), weights=z_n)
+
+mu_eg<-coef(mt) # not sure why these differ by so much!
 
 if(save_plot){
   pdf(paste0(wd, "Tex/PO_", trait, ".pdf"))
@@ -157,8 +150,9 @@ plot(I(Eg_p+mu_eg)~pred_points, xlim=range(THBW_egg_noRep[[trait]]-mu_pred_cond)
 
 points(z_o~z_p, cex=0.3*sqrt(z_n))
 
-mt<-lm(z_o~offset(I(Eg_p+mu_eg)[match(z_p, pred_points)])-1, weights=z_n)
-m1<-lm(z_o~z_p, weights=z_n)          
+
+m1<-lm(z_o~z_p, weights=z_n)
+mt<-lm(z_o~offset(I(Eg_p+mu_eg)[match(z_p, pred_points)])-1, weights=z_n)          
 
 z_pred<-predict(m1, newdata=list(z_p=pred_points), interval="confidence")
 
