@@ -61,7 +61,8 @@ comp_skt(mu_pred, dp=fixedD, breaks=30)
 e_st<-list(
   n_st=nestD[,1],
   e_st=residD[,1],
-  fixed_st=fixedD
+  fixed_st=fixedD,
+  g_st=c(0, geneD, 0, 1e+16)
 )
 # list of environmental distribution parameters: xi, omega, alpha, nu
 

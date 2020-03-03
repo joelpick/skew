@@ -330,22 +330,6 @@ pars <- function(model, par){
   out[grep(par, rownames(out)),c(1,4,8)]
 }
 
- dp2cm<-function(dp, family, object = NULL, cp.type = "proper", upto = NULL){
-
-  ################################################################
-  #  Function for obtaining the mean and 2nd-4th central moments #
-  #  				given the direct parameterisataion 			 #
-  ################################################################
-
-  std_m<-dp2cp(dp=dp, family=family, object = object, cp.type = cp.type, upto = upto)
-  mu = 1:4
-  mu[1] <- std_m[1]
-  mu[2] <- std_m[2]^2
-  mu[3] <- std_m[3]*std_m[2]^(3/2)
-  mu[4] <- std_m[4]*std_m[2]^4
-  return(mu)
- }
-
 dp2cm<-function(dp, family, object = NULL, cp.type = "proper", upto = NULL){
 
   ################################################################
@@ -382,7 +366,7 @@ betaLA_2<-function(dp, S, C, family, object = NULL, cp.type = "proper", upto = N
 
 	mu<-dp2cm(dp, family=family, object = object, cp.type = cp.type, upto = upto)
 
-	return((mu[4]-mu[2]^2)*S-mu[3]*C)/(mu[2]*(mu[4]-mu[2]^2)-mu[3]^2)
+	return(((mu[4]-mu[2]^2)*S-mu[3]*C)/(mu[2]*(mu[4]-mu[2]^2)-mu[3]^2))
 
 }
 

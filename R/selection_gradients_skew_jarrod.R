@@ -18,14 +18,21 @@ if(Sys.info()["user"]=="jhadfiel"){
 source(paste0(wd,"R/functions.R"))
 
 trait<-"weight_g"
-save<-TRUE
-posterior_mean<-FALSE
+save<-FALSE
+posterior_mean<-TRUE
 by<-c("year", "sex")
+by<-NULL
 pred_cond<-c("year2012", "year2013", "year2014", "year2015","year2016","year2017","year2018","sexM", "timeC") # terms to omit from the variance
 
 load(paste0(wd,"Data/Intermediate/day15_survival_models_bv.Rdata"))
+# survival models (including 2010 when eggs weren't weight) and THBW is the data
 
 load(paste0(wd,"Data/Intermediate/stan_dam_data.Rdata"))
+# stan_data_weight$X is the design matrix and THBW_egg_noRep the data
+# excluding years in which eggs weren't measured and repeat measures
+
+
+
 
 if(trait=="weight_g"){
  model_w<-mod_weight_bv
@@ -50,16 +57,13 @@ geneD <- pars(model_z,"_A")[1]
 fixedD<-doppelgangR::st.mle(y = mu_pred)$dp
 names(fixedD)<-paste0(c("xi", "omega", "alpha", "nu"), "_fixed")
 
-e_st<-list(
+z_st<-list(
   n_st=nestD[,1],
   e_st=residD[,1],
-  fixed_st=fixedD
+  fixed_st=fixedD,
+  g_st = c(0, geneD, 0, 1e+16)
 )
-# list of environmental distribution parameters: xi, omega, alpha, nu
-
-g_st=c(0, geneD, 0, 1e+16)
-# list of genetic distribution parameters: xi, omega, alpha, nu
-
+# list of distribution parameters: xi, omega, alpha, nu
 
 if(is.null(by)){
 	THBW$category <- as.factor(rep(1, nrow(THBW)))
@@ -139,11 +143,13 @@ for(i in 1:n_it){
         WDmin<-wD_func_norm(min(z_sub), mu_etaz=mu_etaz, V_etaz=V_etaz, beta=beta, gamma=gamma,  V_nest=V_nest)
         WDmax<-wD_func_norm(max(z_sub), mu_etaz=mu_etaz, V_etaz=V_etaz, beta=beta, gamma=gamma,  V_nest=V_nest)
 
-        S<-mean(W*z_sub/mean(W))-mean(z_sub)
-        C<-mean(W*(z_sub-mean(z_sub)^2)/mean(W))-var(z_sub)
+		mu<-dp2cm(z_st, family="ST")
 
-	    beta1[i,j]<-S/var(z_sub)  
-	    beta2[i,j]<-betaLA_2(c(list(g_st), e_st), S, C, family="ST")
+        S<-mean(W*z_sub/mean(W))-mu[1]
+        C<-mean(W*((z_sub-mu[1])^2)/mean(W))-mu[2]
+
+	    beta1[i,j]<-S/mu[2]  
+	    beta2[i,j]<-betaLA_2(z_st, S=S, C=C, family="ST")
 	    beta3[i,j]<-mean(WD)/mean(W)
 
 	    int_opt[i,j]<-(WDmax<0 & WDmin>0)
@@ -151,16 +157,13 @@ for(i in 1:n_it){
 	print(i)
 }
 
-stop()
-
-
 if(save){
 	save(beta1,beta2, beta3, int_opt, file=paste0(wd,"Data/Intermediate/selection_gradient_",if(is.null(by)){""}else{"by_"}, trait,"_",format(Sys.time(), "%Y%m%d_%H%M"),".Rdata"))
 }
 
-beta_skew<-rowMeans(beta_skew)
-beta_normal<-rowMeans(beta_normal)
-s_skew<-rowMeans(s_skew)
+beta1<-rowMeans(beta1)
+beta2<-rowMeans(beta2)
+beta3<-rowMeans(beta3)
 
 THBW$traitCat <- bin(z,n=20)+attr(z, "scaled:center")
 
@@ -175,23 +178,15 @@ plot(WD[order(z_sub)]~I(z_sub[order(z_sub)]+attr(z, "scaled:center")), type="l",
 abline(v=mean(z_sub)+attr(z, "scaled:center"), col="grey")
 
 par(mfrow=c(3,1))
-hist(beta_skew, xlim=range(c(beta_normal,beta_skew)), breaks=50)
-hist(beta_normal, xlim=range(c(beta_normal,beta_skew)), breaks=50)
-hist(beta_normal-beta_skew, breaks=50)
-
-sum(beta_skew<beta_normal)/n_it
-sum(beta_skew<0)/n_it
-sum(beta_normal<0)/n_it
-
-S<-mean(tapply(THBW$tarsus_mmC[which(THBW$recruit)], THBW$category[which(THBW$recruit)], mean)-tapply(THBW$tarsus_mmC, THBW$category, mean), na.rm=TRUE)
-
+hist(beta3, xlim=range(c(beta1,beta3)), breaks=50)
+hist(beta1, xlim=range(c(beta1,beta3)), breaks=50)
+hist(beta1-beta3, breaks=50)
 
 par(mfrow=c(3,1))
-hist(beta_skew, xlim=range(c(beta_normal,beta_skew, s_skew)), breaks=50)
-hist(s_skew, xlim=range(c(beta_normal,beta_skew, s_skew)), breaks=50)
-hist(s_skew-beta_skew, breaks=50)
+hist(beta3, xlim=range(c(beta2,beta3)), breaks=50)
+hist(beta2, xlim=range(c(beta2,beta3)), breaks=50)
+hist(beta2-beta3, breaks=50)
 
-sum(beta_skew<s_skew)/n_it
-sum(beta_skew<0)/n_it
-sum(s_skew<0)/n_it
+
+
 
