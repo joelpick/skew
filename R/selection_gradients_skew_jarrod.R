@@ -19,9 +19,9 @@ if(Sys.info()["user"]=="jhadfiel"){
 source(paste0(wd,"R/functions.R"))
 
 trait<-"weight_g"
-re_run<-FALSE
-save<-FALSE
-posterior_mean<-TRUE
+re_run<-TRUE
+save<-TRUE
+posterior_mean<-FALSE
 save_plot<-FALSE
 cond_term<-c("year", "sex") # terms to condition on 
 cont_term<-c("timeC")   	# terms to control for
@@ -40,7 +40,7 @@ if(trait=="weight_g"){
 }
 if(trait=="tarsus_mm"){
  model_w<-mod_tarsus_bv
- model_z<-get(load(paste0(wd,"Data/Intermediate/stanModTarsus_pedN20191217_1716.Rdata"))) 
+ model_z<-get(load(paste0(wd,"Data/Intermediate/stanModTarsus_pedN20191217_1716.Rdata")))
 }
 rm("mod_weight_bv", "mod_tarsus_bv")
 # read in fitness models (model_w) and trait models (model_z): 
@@ -57,44 +57,10 @@ pred_cont_pos<-match(pred_cont, colnames(stan_data_weight$X))
 pred_pos<-match(setdiff(colnames(stan_data_weight$X), c(pred_cond, pred_cont_pos)), colnames(stan_data_weight$X))
 # gets the position of the effects that are neither controlling or conditioning (marginal variables)
 
-mu_pred_cond<-stan_data_weight$X[,pred_cond_pos,drop=FALSE]%*%pars(model_z, "beta")[pred_cond_pos,1]
-mu_pred_cont<-stan_data_weight$X[,pred_cont_pos,drop=FALSE]%*%pars(model_z, "beta")[pred_cont_pos,1]
-mu_pred<-stan_data_weight$X[,pred_pos]%*%pars(model_z, "beta")[pred_pos,1]
-# gets the predictions for the trait models for conditioning, controlling and marginal variables. 
-
-nestD <- pars_ST(model_z, "nest")
-residD <- pars_ST(model_z, if(trait=="weight_g"){"E"}else{"ind"})
-geneD <- pars(model_z,"_A")[1]
-# gets the distributional parameters for the random effects 
-
-fixedD<-doppelgangR::st.mle(y = mu_pred)$dp
-names(fixedD)<-paste0(c("xi", "omega", "alpha", "nu"), "_fixed")
-# approximates the distribution of predictions for marginal variables as skew-t
-
-z_st<-list(
-  n_st=nestD[,1],
-  e_st=residD[,1],
-  fixed_st=fixedD,
-  g_st = c(0, geneD, 0, 1e+16)
-)
-# list of distribution parameters for the different components: xi, omega, alpha, nu
-
-pmu<-post_mu(model_z, components=c("nest", if(trait=="weight_g"){"E"}else{"ind"}, "A"), X=stan_data_weight$X, pred_pos=pred_pos, standardise=TRUE)
-# posterior distribution of moments
-
-mup<-dp2cm(z_st, family="ST", standardise=TRUE)
-# moments given posterior mean of parameters
-
-smu<-scm(THBW_egg_noRep[[trait]]-mu_pred_cond-mu_pred_cont, standardise=TRUE)
-# sample moments of deviation of trait from conditioning+controlling predictions
-
-par(mfrow=c(2,2))
-for(i in 1:4){
- hist(pmu[which(pmu[,i]<100),i], breaks=100, main=paste("Central Moment", i), xlab="")
- abline(v=smu[i], col="red")
- abline(v=mup[i], col="blue")
-}
-# posterior distribution of central moments with observed values in red
+mu_pred_condX<-stan_data_weight$X[,pred_cond_pos,drop=FALSE]
+mu_pred_contX<-stan_data_weight$X[,pred_cont_pos,drop=FALSE]
+mu_predX<-stan_data_weight$X[,pred_pos,drop=FALSE]
+# gets the design matrices for the trait models for conditioning, controlling and marginal variables. 
 
 if(is.null(cond_term)){
 	THBW$category <- as.factor(rep(1, nrow(THBW)))
@@ -136,6 +102,9 @@ if(any(!mapply(colnames(X_eta2), colnames(model_w$Sol)[eta2_pos], FUN=function(x
 z<-THBW[,paste0(trait, "C")]
 # trait value in the survival model (not that it was globally mean centred)
 
+zmean_center<-attr(z, "scaled:center")
+# value trait is centered at
+
 if(posterior_mean){
 	n_it<-1
 }else{
@@ -149,25 +118,65 @@ if(re_run){
 	beta2 <- matrix(NA, n_it, n_comb)  # linear term in quadratic best fit
 	beta3 <- matrix(NA, n_it, n_comb)  # average gradient
 	h2a <- matrix(NA, n_it, n_comb)    # heritability after selection
+    h2b <- matrix(NA, n_it, 1)         # heritability before selection
 
 	int_opt<- matrix(NA, n_it, n_comb)
 
-    Wplot.points<-seq(min(z), max(z), length=100)
-    # (mean-centred) trait values at which to evaluate the fitness function for visualisation purposes
+	nplot.points<-10
 
-    Wplot_tmp<-matrix(NA, nlevels(THBW$category), 100)   # fitness functions for each category at an iteration
+    Wplot.points<-seq(min(z), max(z), length=nplot.points)+zmean_center
+    # trait values at which to evaluate the fitness function for visualisation purposes
 
-    Wplot<-matrix(NA, nrow(model_w$Sol), 100)            # fitness function averaged over categories (i.e colMeans on Wplot_tmp) 
+    Wplot_tmp<-matrix(NA, nlevels(THBW$category), nplot.points)
+    # fitness functions for each category at an iteration
+
+    Wplot<-matrix(NA, nrow(model_w$Sol), nplot.points)   # fitness function averaged over categories
+
+    dz_p<-matrix(NA, nrow(model_w$Sol), nplot.points)    # phenotypic density function 
+    Eg_p<-matrix(NA, nrow(model_w$Sol), nplot.points)    # parent-offspring regression 
+    dEg_p<-matrix(NA, nrow(model_w$Sol), nplot.points)   # derivative of parent-offspring regression 
+
+    model_zpost<-extract(model_z)
+
+    model_zbeta<-model_zpost$beta
+    # posterior for location effects from trait model
+    model_znbeta<-as.matrix(as.data.frame(model_zpost[-which(names(model_zpost)=="beta")]))
+    # posterior for distribution effects from trait model
+
+    t_terms<-c("xi", "omega", "alpha", "nu")
 
     if(posterior_mean){
 
         model_w$Sol[1,]<-colMeans(model_w$Sol)
         model_w$VCV[1,]<-colMeans(model_w$VCV)
+        model_zbeta[1,]<-colMeans(model_zbeta)
+		model_znbeta[1,]<-colMeans(model_znbeta)
         # replace first iteration with posterior means if not iterating over complete posterior
     }
        
 	for(i in 1:n_it){
 
+		mu_pred_cond<-mu_pred_condX%*%model_zbeta[i,pred_cond_pos]
+		mu_pred_cont<-mu_pred_contX%*%model_zbeta[i,pred_cont_pos]
+		mu_pred<-mu_predX%*%model_zbeta[i,pred_pos]
+		# gets the predictions for the trait models for conditioning, controlling and marginal variables. 
+
+		e_st<-list(n_st=model_znbeta[i,paste0(t_terms, "_nest")],
+			       e_st=model_znbeta[i,paste0(t_terms, if(trait=="weight_g"){"_E"}else{"_ind"})], 
+			       fixed_st=doppelgangR::st.mle(y = mu_pred)$dp)
+        # list of environmental distribution parameters: xi, omega, alpha, nu
+        # fixed_st is a skew-t approximation for the marginal variable predictions 
+
+		g_st<-c(0, model_znbeta[i,"sigma_A"], 0, 1e+16)
+		# list of genetic distribution parameters
+
+        for(j in 1:nplot.points){
+		    dz_p[i,j] <-dz(Wplot.points[j], g_st=g_st, e_st=e_st)
+		    Eg_p[i,j] <-POreg(Wplot.points[j],  g_st=g_st, e_st=e_st)
+		    dEg_p[i,j] <- dPOreg(Wplot.points[j], g_st=g_st, e_st=e_st, Eg_p=Eg_p[i,j])
+        }
+
+        h2b[i]<-(g_st[2]^2)/dp2cm(c(list(g_st), e_st), family="ST")[2]
 
 		eta1 <- X_eta1%*%model_w$Sol[i,eta1_pos]
 		eta2 <- X_eta2%*%model_w$Sol[i,eta2_pos]
@@ -205,11 +214,11 @@ if(re_run){
 	        WDmax<-wD_func(max(z), mu_etaz=mu_etaz, V_etaz=V_etaz, beta=beta, gamma=gamma,  V_nest=V_nest)
             # slope of the fitness function at extreme (mean-centered) trait values
 
-	        Wplot_tmp[j,]<-sapply(Wplot.points, w_func, mu_etaz=mu_etaz, V_etaz=V_etaz, beta=beta, gamma=gamma,  V_nest=V_nest)
+	        Wplot_tmp[j,]<-sapply(Wplot.points-zmean_center, w_func, mu_etaz=mu_etaz, V_etaz=V_etaz, beta=beta, gamma=gamma,  V_nest=V_nest)
  			# fitness evaluated for (mean-centred) trait values used for visualisation of the fitness function
 
 			if(any(THBW_egg_noRep$category==cat) & model_moments){
-			  mu<-dp2cm(z_st, family="ST")
+			  mu<-dp2cm(c(list(g_st), e_st), family="ST")
 			  # central moments of the deviation of the (non-mean-centred) trait values 
 			  # from the conditional/controlling predictions as inferred from the trait model
 
@@ -229,7 +238,7 @@ if(re_run){
 		    beta1[i,j]<-S/mu[2]  
 		    beta2[i,j]<-betaLA_2(mu, S=S, C=C, family="ST")
 		    beta3[i,j]<-mean(WD)/mean(W)
-			h2a[i,j]<-h2a(10000, g_st=z_st$g_st, e_st=z_st[-which(names(z_st)=="g_st")], adj_mean=mu[1]-attr(z, "scaled:center"), mu_etaz=mu_etaz, V_etaz=V_etaz, beta=beta, gamma=gamma,  V_nest=V_nest)
+			h2a[i,j]<-h2a(10000, g_st=g_st, e_st=e_st, adj_mean=mu[1]-zmean_center, mu_etaz=mu_etaz, V_etaz=V_etaz, beta=beta, gamma=gamma,  V_nest=V_nest)
 
 		    int_opt[i,j]<-(WDmax<0 & WDmin>0)  # is there an internal stationary point
 		}
@@ -238,6 +247,22 @@ if(re_run){
 
 		print(i)
 	}
+
+	comp_skt(mu_pred, dp=fixedD, breaks=30)
+	# check to make sure skew-t approximation for fixed effect predictors is good.
+
+	pmu<-post_mu(model_z, components=c("nest", if(trait=="weight_g"){"E"}else{"ind"}, "A"), X=stan_data_weight$X, pred_pos=pred_pos, standardise=TRUE)
+	# posterior distribution of moments
+
+	smu<-scm(THBW_egg_noRep[[trait]]-mu_pred_cond-mu_pred_cont, standardise=TRUE)
+	# sample moments of deviation of trait from iteration n_it conditioning+controlling predictions
+
+	par(mfrow=c(2,2))
+	for(i in 1:4){
+	 hist(pmu[which(pmu[,i]<100),i], breaks=100, main=paste("Central Moment", i), xlab="")
+	 abline(v=smu[i], col="red")
+	}
+	# posterior distribution of central moments with observed values in red
 
 	THBW$traitCat <- bin(z,n=20)+attr(z, "scaled:center")
 
@@ -252,7 +277,7 @@ if(re_run){
 	abline(v=mean(z_sub)+attr(z, "scaled:center"), col="grey")
 
 	if(save){
-		save(beta1,beta2, beta3, int_opt, Wplot, Wplot.points, h2a, file=paste0(wd,"Data/Intermediate/selection_gradient_",if(is.null(cond_term)){""}else{"by_"}, trait,"_",format(Sys.time(), "%Y%m%d_%H%M"),".Rdata"))
+		save(beta1,beta2, beta3, int_opt, Wplot, Wplot.points, h2a, h2b, Eg_p, dEg_p, dz_p, file=paste0(wd,"Data/Intermediate/selection_gradient_",if(is.null(cond_term)){""}else{"by_"}, trait,"_",format(Sys.time(), "%Y%m%d_%H%M"),".Rdata"))
 	}
 
 }else{
@@ -279,15 +304,15 @@ THBW_egg_noRep$w<-THBW$recruit[match(THBW_egg_noRep$bird_id, THBW$bird_id)]
 
 post_it<-seq(1, nrow(model_w$Sol), 15)
 
-plot(colMeans(Wplot)~I(Wplot.points+mean(THBW_egg_noRep[[trait]])), lwd=2, xlim=range(THBW_egg_noRep[[trait]]),  ylim=c(0,max(Wplot[post_it,])), xlab=paste(trait), ylab="Fitness", type="l")
+plot(colMeans(Wplot)~Wplot.points, lwd=2, xlim=range(THBW_egg_noRep[[trait]]),  ylim=c(0,max(Wplot[post_it,])), xlab=paste(trait), ylab="Fitness", type="l")
 
 
 for(i in post_it){
 
-	lines(Wplot[i,]~I(Wplot.points+mean(THBW_egg_noRep[[trait]])), col="red", lwd=0.01)
+	lines(Wplot[i,]~Wplot.points, col="red", lwd=0.01)
 }
 
-lines(colMeans(Wplot)~I(Wplot.points+mean(THBW_egg_noRep[[trait]])), lwd=2)
+lines(colMeans(Wplot)~Wplot.points, lwd=2)
 
 binPoints(w~binned, THBW_egg_noRep)
 
@@ -310,5 +335,58 @@ hist(beta2, xlim=range(c(beta2,beta3)), breaks=50)
 hist(beta2-beta3, breaks=50)
 
 
+z_om<-tapply(THBW_egg_noRep[[trait]]-mu_pred_cond-mu_pred_cont, THBW_egg_noRep$dam_P, mean, na.rm=TRUE)
+z_nm<-tapply(THBW_egg_noRep[[trait]], THBW_egg_noRep$dam_P, function(x){sum(!is.na(x))})
+z_m<-(THBW_egg_noRep[[trait]]-mu_pred_cond-mu_pred_cont)[match(names(z_om), THBW_egg_noRep$bird_id)]
+
+z_of<-tapply(THBW_egg_noRep[[trait]]-mu_pred_cond-mu_pred_cont, THBW_egg_noRep$sire_P, mean, na.rm=TRUE)
+z_nf<-tapply(THBW_egg_noRep[[trait]], THBW_egg_noRep$sire_P, function(x){sum(!is.na(x))})
+z_f<-(THBW_egg_noRep[[trait]]-mu_pred_cond-mu_pred_cont)[match(names(z_of), THBW_egg_noRep$bird_id)]
+
+z_o<-c(z_om, z_of)
+z_p<-c(z_m, z_f)
+z_n<-c(z_nm, z_nf)
+
+complete<-which(!is.na(z_p) & !is.na(z_o))
+
+z_o<-z_o[complete]
+z_p<-z_p[complete]
+z_n<-z_n[complete]
+
+
+mu_eg<-0.5*dp2cp(g_st, family="ST")[1]+sum(unlist(lapply(e_st, function(x){dp2cp(x, family="ST")[1]})))
+
+mt<-lm(z_o~offset(I(Eg_p)[match(z_p, pred_points)]), weights=z_n)
+
+mu_eg<-coef(mt) # not sure why these differ by so much!
+
+if(save_plot){
+  pdf(paste0(wd, "Tex/PO_", trait, ".pdf"))
+}
+
+par(mar=c(5,5,1,1),mfrow=c(2,1))
+hist(THBW_egg_noRep[[trait]]-mu_pred_cond-mu_pred_cont, col="grey",main="", xlab=paste(trait), breaks=30)
+
+plot(I(Eg_p+mu_eg)~Wplot.points, xlim=range(THBW_egg_noRep[[trait]]-mu_pred_cond-mu_pred_cont), ylim=range(z_o), type="l", xlab="Parent", ylab="Offspring", lwd=2, col="red")
+
+#for(i in 1:npoints){
+#   arrows(pred_points[i], (Eg_p+mu_eg)[i], pred_points[i]+0.1, (Eg_p+mu_eg)[i]+0.1*dEg_p[i], length=0.1)
+#}
+# check to make sure derivative correct
+
+points(z_o~z_p, cex=0.3*sqrt(z_n))
+
+m1<-lm(z_o~z_p, weights=z_n)
+mt<-lm(z_o~offset(I(Eg_p+mu_eg)[match(z_p, pred_points)])-1, weights=z_n)          
+
+z_pred<-predict(m1, newdata=list(z_p=Wplot.points), interval="confidence")
+
+lines(z_pred[,1]~Wplot.points, lty=1)
+lines(z_pred[,2]~Wplot.points, lty=2)
+lines(z_pred[,3]~Wplot.points, lty=2)
+
+if(save_plot){
+dev.off()
+}
 
 

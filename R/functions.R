@@ -425,7 +425,7 @@ comp_skt<-function(x, dp, breaks="Sturges", ...){
 } 
 
 
-conv<-function(par, z_p, z_st, e_st){
+conv<-function(par, z_p, g_st, e_st){
 
   ################################################################
   #   Function for obtaining the integrand in the convolution    #
