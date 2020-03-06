@@ -123,7 +123,7 @@ if(re_run){
 
 	int_opt<- matrix(NA, n_it, n_comb)
 
-	nplot.points<-10
+	nplot.points<-100
 
     Wplot.points<-seq(min(z), max(z), length=nplot.points)+zmean_center
     # trait values at which to evaluate the fitness function for visualisation purposes
