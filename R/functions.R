@@ -321,6 +321,13 @@ binPlot <- function(formula,data,text.cex=1,...){
 	text(formula,bindedMeans, bindedCounts[,2], pos=3,cex=text.cex)
 }
 
+binPoints <- function(formula,data,text.cex=1,...){
+	bindedMeans<- aggregate(formula,data,mean)
+	bindedCounts<- aggregate(formula,data,length)
+	points(formula,bindedMeans, pch=19,...)
+	text(formula,bindedMeans, bindedCounts[,2], pos=3,cex=text.cex)
+}
+
 pars_ST <- function(model, variable){
   summary(model)$summary[paste(c("xi","omega", "alpha", "nu"),variable, sep="_"),c(1,4,8)]
 }
@@ -330,11 +337,30 @@ pars <- function(model, par){
   out[grep(par, rownames(out)),c(1,4,8)]
 }
 
-dp2cm<-function(dp, family, object = NULL, cp.type = "proper", upto = NULL){
+scm<-function(x, standardise=FALSE){
+
+  ###############################################
+  #    Sample mean and 2nd-4th central moments  #
+  ###############################################
+
+  mu<-1:4
+  mu[1]<-mean(x)
+  for(i in 2:4){
+    mu[i]<-mean((x-mu[1])^i)
+  }
+  if(standardise){
+  	for(i in 3:4){
+       mu[i]<-mu[i]/sqrt(mu[2])^i
+    }   
+  }	
+  return(mu)
+}  
+
+dp2cm<-function(dp, family, object = NULL, cp.type = "proper", upto = NULL, standardise=FALSE){
 
   ################################################################
   #           Computes mean and 2nd-4th central moments          #
-  #  		  if dp is a list it is the moments of a sum 		 #
+  #  		  if dp is a list it is the moments of the sum 		 #
   ################################################################
 
   if(!is.list(dp)){
@@ -358,20 +384,29 @@ dp2cm<-function(dp, family, object = NULL, cp.type = "proper", upto = NULL){
 
   mu[4] = sum(unlist(lapply(cm, function(x){x[4]-3*x[2]^2})))+3*mu[2]^2
 
+  if(standardise){
+  	for(i in 3:4){
+       mu[i]<-mu[i]/sqrt(mu[2])^i
+    }   
+  }	
+
   return(mu)
 }
 
 
-betaLA_2<-function(dp, S, C, family, object = NULL, cp.type = "proper", upto = NULL){
+betaLA_2<-function(mu, S, C, family, object = NULL, cp.type = "proper", upto = NULL){
 
-	mu<-dp2cm(dp, family=family, object = object, cp.type = cp.type, upto = upto)
+  ###############################################################################
+  #       Computes the linear regression coefficient from a quadratic fit       #
+  # of fitness on the trait, where mu are the mean and central moments (2:4)    #
+  #  		S is the linear and C the quadratic selection differential          #					
+  ###############################################################################
 
 	return(((mu[4]-mu[2]^2)*S-mu[3]*C)/(mu[2]*(mu[4]-mu[2]^2)-mu[3]^2))
 
 }
 
 comp_skt<-function(x, dp, breaks="Sturges", ...){
-
 
   ################################################################
   #           Function for plotting a histogram of x             #
@@ -389,7 +424,8 @@ comp_skt<-function(x, dp, breaks="Sturges", ...){
 
 } 
 
-conv<-function(par, z_p, g_st, e_st){
+
+conv<-function(par, z_p, z_st, e_st){
 
   ################################################################
   #   Function for obtaining the integrand in the convolution    #
@@ -457,6 +493,19 @@ dz<-function(z_p, g_st, e_st, limit_prob=1e-4){
   return(dz)
 }
 
+rz<-function(n, z_st){
+
+  ################################################################
+  #               Function for simulating z                      #
+  #  based on distribution of genetic and environmental effects  #
+  #          (passed as parameters of the skew-t)                #
+  ################################################################
+
+  u<-data.frame(c(lapply(z_st, function(x){rst(n, dp=x)})))
+
+  return(rowSums(u))
+}
+
 POreg<-function(z_p, g_st, e_st, limit_prob=1e-4){
 
   ################################################################
@@ -504,27 +553,35 @@ dPOreg<-function(z_p=NULL, g_st=NULL, e_st=NULL, Eg_p=NULL, limit_prob=1e-4){
   return(dEg_p)
 }
 
-cmvnorm<-function(mean=NULL, sigma=NULL, cond=NULL, df=NULL, keep_var, cond_var=NULL){
+cmvnorm<-function(mean=NULL, sigma=NULL, cond=NULL, keep_var, cond_var=NULL){
 
-	if(!is.null(df)){
-		mean <- colMeans(df)
-		sigma <- cov(df)
-		cond <- df
-	}else{
-		if(is.null(mean)){stop("mean needs to be specified if data.frame not passed in 'df'")}
-		if(is.null(sigma)){stop("sigma needs to be specified if data.frame not passed in 'df'")}
-		if(is.null(cond)){stop("cond needs to be specified if data.frame not passed in 'df'")}
-	}	
+  #######################################################################################
+  #         Function for calculating the conditional means and (co)variances            #
+  #  for the set of variates in keep_var conditional on the set of variates in cond_var #
+  #        cond are the values of the cond_var variates to be conditioned on            #
+  #           mean and sigma are the unconditional means and (co)variances              #
+  #######################################################################################
+		
 	cV <- sigma[keep_var,keep_var]-sigma[keep_var, -keep_var]%*%solve(sigma[-keep_var, -keep_var])%*%sigma[-keep_var, keep_var]
+
 	if(length(dim(cond))==2){
- 		cM <- sapply(1:nrow(cond), function(x) mean[keep_var]+sigma[keep_var, -keep_var]%*%solve(sigma[-keep_var, -keep_var])%*%(cond[x,]-mean)[-keep_var])
- 	}else{
- 		cM <- mean[keep_var]+sigma[keep_var, -keep_var]%*%solve(sigma[-keep_var, -keep_var])%*%(cond-mean)[-keep_var]
- 	}	
- 	return(list(cM=cM, cV=cV))
+		cM <- sapply(1:nrow(cond), function(x) mean[keep_var]+sigma[keep_var, -keep_var]%*%solve(sigma[-keep_var, -keep_var])%*%(cond[x,]-mean)[-keep_var])
+	}else{
+		cM <- mean[keep_var]+sigma[keep_var, -keep_var]%*%solve(sigma[-keep_var, -keep_var])%*%(cond-mean)[-keep_var]
+	}
+
+	return(list(cM=cM, cV=cV))
 }
 
 w_func<-function(z, mu_etaz, V_etaz, beta, gamma,  V_nest){
+
+	  #################################################################################################
+	  #             Fitness as a function of z for a probit two-event history analysis  	          #
+	  #  where beta and gamma are vectors for the linear and quardatic coefficient for the two events #
+	  #                  mu_etaz and V_etaz are the means and covariances                             #
+	  #         of the linear predictors (excluding z) for the two events followed by z               #
+	  # V_nest is the between nest covrainace matrix and the error structure is assumed to be diag(2) #
+	  #################################################################################################
 
 	g_s<-cmvnorm(mean=mu_etaz, sigma=V_etaz, cond=c(NA,NA, z), keep_var=1:2, cond_var=3)$cM+beta*z+gamma*z^2
     V_s<-cmvnorm(mean=mu_etaz, sigma=V_etaz, cond=c(NA,NA, z), keep_var=1:2, cond_var=3)$cV+V_nest+diag(2)
@@ -532,13 +589,16 @@ w_func<-function(z, mu_etaz, V_etaz, beta, gamma,  V_nest){
 	return(pmvnorm(lower=c(0,0), mean=c(g_s), sigma=V_s))
 }
 
-w_func_norm<-function(z, mu_etaz, V_etaz, beta, gamma,  V_nest){
-
-	w_func(z, mu_etaz, V_etaz, beta, gamma,  V_nest)*dnorm(z, mu_etaz[3], sqrt(V_etaz[3,3]))
-}
-w_func_norm<-Vectorize(w_func_norm, "z")
-
 wD_func<-function(z, mu_etaz, V_etaz, beta, gamma,  V_nest){
+
+	  #################################################################################################
+	  #      Derivative of fitness with respect to z for a probit two-event history analysis  	      #
+	  #  where beta and gamma are vectors for the linear and quardatic coefficient for the two events #
+	  #                  mu_etaz and V_etaz are the means and covariances                             #
+	  #         of the linear predictors (excluding z) for the two events followed by z               #
+	  # V_nest is the between nest covrainace matrix and the error structure is assumed to be diag(2) #
+	  #################################################################################################
+
 
 	g_s<-cmvnorm(mean=mu_etaz, sigma=V_etaz, cond=c(NA,NA, z), keep_var=1:2, cond_var=3)$cM+beta*z+gamma*z^2
     V_s<-cmvnorm(mean=mu_etaz, sigma=V_etaz, cond=c(NA,NA, z), keep_var=1:2, cond_var=3)$cV+V_nest+diag(2)
@@ -553,10 +613,96 @@ wD_func<-function(z, mu_etaz, V_etaz, beta, gamma,  V_nest){
     return(ch1+ch2)
 }
 
-wD_func_norm<-function(z, mu_etaz, V_etaz, beta, gamma,  V_nest){
 
-	wD_func(z, mu_etaz, V_etaz, beta, gamma,  V_nest)*dnorm(z, mu_etaz[3], sqrt(V_etaz[3,3]))
+post_mu<-function(model, components=NULL, X=NULL, pred_pos=NULL, standardise=FALSE){
+
+  ################################################################################################
+  #          Posterior distribution of mean and 2nd-4th central moments from a stan fit          #
+  # for the sum of effects listed in components	and the linear predictor defined by X[,pred_pos] #  
+  #                 component terms are assumed to be either Gaussain or Skew-t	                 #
+  ################################################################################################
+
+    post<-as.data.frame(extract(model))
+
+    post_mu<-matrix(NA, nrow(post), 4)
+    z_st<-pos_comp<-rep(list(c(0,0,0, 1e+16)), length(components))
+
+    ST<-paste0("xi", "_", components)%in%names(post)
+
+    for(j in 1:length(components)){
+      if(ST[j]){
+        pos_comp[[j]]<-match(paste0(c("xi", "omega", "alpha", "nu"), "_", components[j]), names(post))
+      }else{
+        pos_comp[[j]]<-match(paste0("sigma_", components[j]), names(post))
+      }  
+    }
+
+    for(i in 1:nrow(post)){
+      for(j in 1:length(components)){
+        if(ST[j]){
+          z_st[[j]]<-unlist(post[i,pos_comp[[j]]])
+        }else{
+          z_st[[j]][2]<-post[i,pos_comp[[j]]]
+        }  
+      }
+      post_mu[i,]<-dp2cm(z_st, family="ST")
+    }
+
+    if(!is.null(X)){
+	    Xpred<-X[,pred_pos]
+
+	    pred_pos<-grep("beta\\.", names(post))[pred_pos]
+	 
+	    post_mu<-post_mu+t(apply(post[,pred_pos], 1, function(x){scm(Xpred%*%x)}))
+    }
+    
+    if(standardise){
+	  	for(i in 3:4){
+	       post_mu[,i]<-post_mu[,i]/sqrt(post_mu[,2])^i
+	    }   
+  }	
+
+
+    return(post_mu)
 }
-wD_func_norm<-Vectorize(wD_func_norm, "z")
 
+
+
+h2a<-function(n, g_st=NULL, e_st=NULL, adj_mean=NULL, mu_etaz=NULL, V_etaz=NULL, beta=NULL, gamma=NULL,  V_nest=NULL){
+
+  ########################################################################################################
+  #  Function for obtaining (2X) the single-parent-offspring regression after selection using simulation #      
+  #                             where n is the number of simulated values                                #
+  #                                    *From the Trait Model*                                            #
+  #	               g_st and e_st are the distributional parameters for the trait                         #  
+  #   if adj_mean is not NULL the mean defined by g_st and e_st is replaced with the value specified  	 #
+  #                                   *From the Survival Model*                                          #
+  #  mu_etaz and V_etaz are the mean and covariance matrix of trait values and linear predictors         #
+  #	    beta and gamma are the linear/quadratic regression terms for the (mean-centred) trait            #
+  #	                         V_nest is the between nest covariance matrix                                #
+  ########################################################################################################
+
+  g<-rst(n, dp=g_st)
+  zp<-g+rz(n, z_st[-which(names(z_st)=="g_st")])
+  zo<-0.5*g+rz(n, z_st[-which(names(z_st)=="g_st")])+rst(n, dp=z_st$g_st)/2
+
+  mu<-dp2cm(c(list(g_st), e_st), family="ST")
+
+  if(!is.null(adj_mean)){
+    adj_mean<-adj_mean-mu[1]
+    mu[1]<-mu[1]+adj_mean
+  }	
+ 
+  zp<-zp+adj_mean
+  zo<-zo+adj_mean
+
+  wz<-sapply(zp, w_func, mu_etaz=mu_etaz, V_etaz=V_etaz, beta=beta, gamma=gamma,  V_nest=V_nest)
+  wz<-wz/mean(wz)
+
+  S<-mean(wz*zp)-mu[1]
+  C<-mean(wz*(zp-mu[1])^2)-mu[2]
+
+  return(cov(zo,zp*wz)/(mu[2]+C-S^2))
+
+}
 

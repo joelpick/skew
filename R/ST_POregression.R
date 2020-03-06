@@ -12,7 +12,8 @@ library(sn)
 library(mvtnorm)
 library(cubature)
 
-trait<-"tarsus_mm"
+trait<-"weight_g"
+re_run=FALSE
 simulate<-FALSE
 nsim<-10000 # number of simulated parent-offspring pairs
 save<-TRUE
@@ -28,6 +29,10 @@ if(Sys.info()["user"]=="jhadfiel"){
   wd <- "~/Work/Skew/"
 }else{
   wd <- "~/Dropbox/0_blue_tits/skew/"
+}
+
+post_st<-function(model, it){
+
 }
 
 
@@ -48,6 +53,8 @@ pred_pos<-match(setdiff(colnames(stan_data_weight$X), pred_cond), colnames(stan_
 mu_pred_cond<-stan_data_weight$X[,pred_cond_pos]%*%pars(model_z, "beta")[pred_cond_pos,1]
 mu_pred<-stan_data_weight$X[,pred_pos]%*%pars(model_z, "beta")[pred_pos,1]
 
+
+
 nestD <- pars_ST(model_z, "nest")
 residD <- pars_ST(model_z, if(trait=="weight_g"){"E"}else{"ind"})
 geneD <- pars(model_z,"_A")[1]
@@ -61,13 +68,12 @@ comp_skt(mu_pred, dp=fixedD, breaks=30)
 e_st<-list(
   n_st=nestD[,1],
   e_st=residD[,1],
-  fixed_st=fixedD,
-  g_st=c(0, geneD, 0, 1e+16)
+  fixed_st=fixedD
 )
-# list of environmental distribution parameters: xi, omega, alpha, nu
+# list of distribution parameters: xi, omega, alpha, nu
 
-g_st=c(0, geneD, 0, 1e+16)
-# list of genetic distribution parameters: xi, omega, alpha, nu
+g_st<-c(0, geneD, 0, 1e+16)
+
 
 
 if(simulate){
@@ -112,23 +118,32 @@ if(simulate){
 
 npoints<-min(length(z_p),200)
 
-pred_points<-sort(z_p)[seq(1, length(z_p), length(z_p)/npoints)]
+if(re_run){
 
-Eg_p<-dEg_p<-dz_p<-1:npoints
+  pred_points<-sort(z_p)[seq(1, length(z_p), length(z_p)/npoints)]
 
-for(i in 1:npoints){
-  dz_p[i] <- dz(z_p=pred_points[i], g_st=g_st, e_st=e_st)
-  Eg_p[i] <- POreg(z_p=pred_points[i], g_st=g_st, e_st=e_st)
-  dEg_p[i] <- dPOreg(z_p=pred_points[i], g_st=g_st, e_st=e_st, Eg_p=Eg_p[i])
-  print(i)
-} 
+  Eg_p<-dEg_p<-dz_p<-1:npoints
 
-dz_p_norm<-dnorm(pred_points, sum(unlist(lapply(e_st, function(x){dp2cp(x, family="ST")[1]}))), g_st[2]^2+sum(unlist(lapply(e_st, function(x){dp2cp(x, family="ST")[2]^2}))))
+  for(i in 1:npoints){
+    dz_p[i] <- dz(z_p=pred_points[i], g_st=g_st, e_st=e_st)
+    Eg_p[i] <- POreg(z_p=pred_points[i], g_st=g_st, e_st=e_st)
+    dEg_p[i] <- dPOreg(z_p=pred_points[i], g_st=g_st, e_st=e_st, Eg_p=Eg_p[i])
+    print(i)
+  } 
 
-if(save){
-save(Eg_p,dEg_p, dz_p, dz_p_norm, pred_points, file=paste0(wd,"Data/Intermediate/po_regression_",if(is.null(pred_cond)){""}else{"by_"}, trait,"_",format(Sys.time(), "%Y%m%d_%H%M"),".Rdata"))
+  dz_p_norm<-dnorm(pred_points, sum(unlist(lapply(e_st, function(x){dp2cp(x, family="ST")[1]}))), g_st[2]^2+sum(unlist(lapply(e_st, function(x){dp2cp(x, family="ST")[2]^2}))))
+
+  if(save){
+  save(Eg_p,dEg_p, dz_p, dz_p_norm, pred_points, file=paste0(wd,"Data/Intermediate/po_regression_",if(is.null(pred_cond)){""}else{"by_"}, trait,"_",format(Sys.time(), "%Y%m%d_%H%M"),".Rdata"))
+  }
+}else{
+
+  files<-list.files(paste0(wd,"Data/Intermediate/"))
+  files<-files[grep(paste0("po_regression_",if(is.null(pred_cond)){""}else{"by_"}, trait), files)]
+  if(length(files)>1){warning("Multiple po_regressions files, using the last one")}
+  load(paste0(wd,"Data/Intermediate/", files[length(files)]))
+
 }
-
 # load(paste0(wd,"Data/Intermediate/po_regression_by_weight_g_20200228_1649.Rdata"))
 # load(paste0(wd,"Data/Intermediate/po_regression_by_tarsus_mm_20200228_1708.Rdata"))
 
