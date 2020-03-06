@@ -9,6 +9,7 @@ library(MASS)
 library(mvtnorm)
 library(sn)
 library(rstan)
+library(cubature)
 
 if(Sys.info()["user"]=="jhadfiel"){
 	wd <- "~/Work/Skew/"
@@ -176,7 +177,7 @@ if(re_run){
 		    dEg_p[i,j] <- dPOreg(Wplot.points[j], g_st=g_st, e_st=e_st, Eg_p=Eg_p[i,j])
         }
 
-        h2b[i]<-(g_st[2]^2)/dp2cm(c(list(g_st), e_st), family="ST")[2]
+        h2b[i]<-dp2cm(g_st, family="ST")[2]/dp2cm(c(list(g_st), e_st), family="ST")[2]
 
 		eta1 <- X_eta1%*%model_w$Sol[i,eta1_pos]
 		eta2 <- X_eta2%*%model_w$Sol[i,eta2_pos]
@@ -238,7 +239,7 @@ if(re_run){
 		    beta1[i,j]<-S/mu[2]  
 		    beta2[i,j]<-betaLA_2(mu, S=S, C=C, family="ST")
 		    beta3[i,j]<-mean(WD)/mean(W)
-			h2a[i,j]<-h2a(10000, g_st=g_st, e_st=e_st, adj_mean=mu[1]-zmean_center, mu_etaz=mu_etaz, V_etaz=V_etaz, beta=beta, gamma=gamma,  V_nest=V_nest)
+			h2a[i,j]<-h2(10000, g_st=g_st, e_st=e_st, adj_mean=mu[1]-zmean_center, mu_etaz=mu_etaz, V_etaz=V_etaz, beta=beta, gamma=gamma,  V_nest=V_nest)
 
 		    int_opt[i,j]<-(WDmax<0 & WDmin>0)  # is there an internal stationary point
 		}

@@ -668,7 +668,7 @@ post_mu<-function(model, components=NULL, X=NULL, pred_pos=NULL, standardise=FAL
 
 
 
-h2a<-function(n, g_st=NULL, e_st=NULL, adj_mean=NULL, mu_etaz=NULL, V_etaz=NULL, beta=NULL, gamma=NULL,  V_nest=NULL){
+h2<-function(n, g_st=NULL, e_st=NULL, adj_mean=NULL, mu_etaz=NULL, V_etaz=NULL, beta=NULL, gamma=NULL,  V_nest=NULL, after=TRUE){
 
   ########################################################################################################
   #  Function for obtaining (2X) the single-parent-offspring regression after selection using simulation #      
@@ -682,27 +682,34 @@ h2a<-function(n, g_st=NULL, e_st=NULL, adj_mean=NULL, mu_etaz=NULL, V_etaz=NULL,
   #	                         V_nest is the between nest covariance matrix                                #
   ########################################################################################################
 
-  g<-rst(n, dp=g_st)
-  zp<-g+rz(n, z_st[-which(names(z_st)=="g_st")])
-  zo<-0.5*g+rz(n, z_st[-which(names(z_st)=="g_st")])+rst(n, dp=z_st$g_st)/2
-
   mu<-dp2cm(c(list(g_st), e_st), family="ST")
 
-  if(!is.null(adj_mean)){
-    adj_mean<-adj_mean-mu[1]
-    mu[1]<-mu[1]+adj_mean
-  }	
- 
-  zp<-zp+adj_mean
-  zo<-zo+adj_mean
+  if(after){
+	  g<-rst(n, dp=g_st)
+	  zp<-g+rz(n, z_st[-which(names(z_st)=="g_st")])
+	  zo<-0.5*g+rz(n, z_st[-which(names(z_st)=="g_st")])+rst(n, dp=z_st$g_st)/2
 
-  wz<-sapply(zp, w_func, mu_etaz=mu_etaz, V_etaz=V_etaz, beta=beta, gamma=gamma,  V_nest=V_nest)
-  wz<-wz/mean(wz)
+	  if(!is.null(adj_mean)){
+	    adj_mean<-adj_mean-mu[1]
+	    mu[1]<-mu[1]+adj_mean
+	  }	
+	 
+	  zp<-zp+adj_mean
+	  zo<-zo+adj_mean
 
-  S<-mean(wz*zp)-mu[1]
-  C<-mean(wz*(zp-mu[1])^2)-mu[2]
+	  wz<-sapply(zp, w_func, mu_etaz=mu_etaz, V_etaz=V_etaz, beta=beta, gamma=gamma,  V_nest=V_nest)
+	  wz<-wz/mean(wz)
 
-  return(cov(zo,zp*wz)/(mu[2]+C-S^2))
+	  S<-mean(wz*zp)-mu[1]
+	  C<-mean(wz*(zp-mu[1])^2)-mu[2]
+
+	  h2<-cov(zo,zp*wz)/(mu[2]+C-S^2)
+
+   }else{
+   	  h2<-dp2cm(g_st, family="ST")[2]/mu[2]
+   }	  
+
+  return(h2)
 
 }
 
