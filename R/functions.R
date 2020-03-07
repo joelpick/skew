@@ -686,8 +686,8 @@ h2<-function(n, g_st=NULL, e_st=NULL, adj_mean=NULL, mu_etaz=NULL, V_etaz=NULL, 
 
   if(after){
 	  g<-rst(n, dp=g_st)
-	  zp<-g+rz(n, z_st[-which(names(z_st)=="g_st")])
-	  zo<-0.5*g+rz(n, z_st[-which(names(z_st)=="g_st")])+rst(n, dp=z_st$g_st)/2
+	  zp<-g+rz(n, e_st)
+	  zo<-0.5*g+rz(n, e_st)+rst(n, dp=g_st)/2
 
 	  if(!is.null(adj_mean)){
 	    adj_mean<-adj_mean-mu[1]
