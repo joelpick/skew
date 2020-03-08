@@ -22,11 +22,18 @@ source(paste0(wd,"R/functions.R"))
 trait<-"weight_g"
 re_run<-TRUE
 save<-TRUE
-posterior_mean<-FALSE
+posterior_mean<-TRUE
 save_plot<-FALSE
 cond_term<-c("year", "sex") # terms to condition on 
 cont_term<-c("timeC")   	# terms to control for
 model_moments<-FALSE 		# when calculating selection gradients should model-based or sample moments be used
+
+zpoints<-"parents+0.1" 
+# po-regression and fitness function to be evaluated at trait values: 
+# even: spread evenly over the range    
+# parents: equal to those that become parents
+# parents+: equal to those that become parents + evenly spaced phenotypes up to the min/max
+# numerical value after even and parents+ determines the spacing
 
 load(paste0(wd,"Data/Intermediate/day15_survival_models_bv.Rdata"))
 # survival models (including 2010 when eggs weren't weight) and THBW is the data
@@ -123,19 +130,30 @@ if(re_run){
 
 	int_opt<- matrix(NA, n_it, n_comb)
 
-	nplot.points<-100
+	nplot.points<-2
 
-    Wplot.points<-seq(min(z), max(z), length=nplot.points)+zmean_center
+    if(grepl("even", zpoints)){
+    	Wplot.points<-seq(min(z), max(z), as.numeric(gsub("even", "", zpoints)))+zmean_center
+    }
+    if(grepl("parents", zpoints)){	
+		Wplot.points<-sort(THBW_egg_noRep[[trait]][THBW_egg_noRep$bird_id%in%c(THBW_egg_noRep$dam_P, THBW_egg_noRep$sire_P)])
+    }
+    if(grepl("parents\\+", zpoints)){	
+		Wplot.points<-c(seq(min(z+zmean_center), min(Wplot.points), as.numeric(gsub("parents+", "", zpoints))), Wplot.points)
+		Wplot.points<-c(Wplot.points, seq(max(Wplot.points), max(z+zmean_center), as.numeric(gsub("parents+", "", zpoints))))
+    }  
     # trait values at which to evaluate the fitness function for visualisation purposes
+
+    nplot.points<-length(Wplot.points)
 
     Wplot_tmp<-matrix(NA, nlevels(THBW$category), nplot.points)
     # fitness functions for each category at an iteration
 
-    Wplot<-matrix(NA, nrow(model_w$Sol), nplot.points)   # fitness function averaged over categories
+    Wplot<-matrix(NA, n_it, nplot.points)   # fitness function averaged over categories
 
-    dz_p<-matrix(NA, nrow(model_w$Sol), nplot.points)    # phenotypic density function 
-    Eg_p<-matrix(NA, nrow(model_w$Sol), nplot.points)    # parent-offspring regression 
-    dEg_p<-matrix(NA, nrow(model_w$Sol), nplot.points)   # derivative of parent-offspring regression 
+    dz_p<-matrix(NA, n_it, nplot.points)    # phenotypic density function 
+    Eg_p<-matrix(NA, n_it, nplot.points)    # parent-offspring regression 
+    dEg_p<-matrix(NA, n_it, nplot.points)   # derivative of parent-offspring regression 
 
     model_zpost<-extract(model_z)
 
@@ -249,7 +267,7 @@ if(re_run){
 		print(i)
 	}
 
-	comp_skt(mu_pred, dp=fixedD, breaks=30)
+	comp_skt(mu_pred, dp=e_st$fixed_st, breaks=30)
 	# check to make sure skew-t approximation for fixed effect predictors is good.
 
 	pmu<-post_mu(model_z, components=c("nest", if(trait=="weight_g"){"E"}else{"ind"}, "A"), X=stan_data_weight$X, pred_pos=pred_pos, standardise=TRUE)
@@ -278,13 +296,13 @@ if(re_run){
 	abline(v=mean(z_sub)+attr(z, "scaled:center"), col="grey")
 
 	if(save){
-		save(beta1,beta2, beta3, int_opt, Wplot, Wplot.points, h2a, h2b, Eg_p, dEg_p, dz_p, file=paste0(wd,"Data/Intermediate/selection_gradient_",if(is.null(cond_term)){""}else{"by_"}, trait,"_",format(Sys.time(), "%Y%m%d_%H%M"),".Rdata"))
+		save(beta1,beta2, beta3, int_opt, Wplot, Wplot.points, h2a, h2b, Eg_p, dEg_p, dz_p, file=paste0(wd,"Data/Intermediate/selection_gradient_",if(is.null(posterior_mean)){""}else{"pm_"}, if(is.null(cond_term)){""}else{"by_"}, trait,"_",format(Sys.time(), "%Y%m%d_%H%M"),".Rdata"))
 	}
 
 }else{
 
 	files<-list.files(paste0(wd,"Data/Intermediate/"))
-	files<-files[grep(paste0("selection_gradient_",if(is.null(cond_term)){""}else{"by_"}, trait), files)]
+	files<-files[grep(paste0("selection_gradient_",if(is.null(posterior_mean)){""}else{"pm_"}, if(is.null(cond_term)){""}else{"by_"}, trait), files)]
 	if(length(files)>1){warning("Multiple selection_gradient files, using the last one")}
 	load(paste0(wd,"Data/Intermediate/", files[length(files)]))
 }
@@ -303,7 +321,7 @@ hist(THBW_egg_noRep[[trait]], col="grey",main="", xlab=paste(trait), breaks=30)
 THBW_egg_noRep$binned<-bin(THBW_egg_noRep[[trait]])
 THBW_egg_noRep$w<-THBW$recruit[match(THBW_egg_noRep$bird_id, THBW$bird_id)]
 
-post_it<-seq(1, nrow(model_w$Sol), 15)
+post_it<-seq(1, nrow(Wplot), 15)
 
 plot(colMeans(Wplot)~Wplot.points, lwd=2, xlim=range(THBW_egg_noRep[[trait]]),  ylim=c(0,max(Wplot[post_it,])), xlab=paste(trait), ylab="Fitness", type="l")
 
@@ -335,7 +353,6 @@ hist(beta3, xlim=range(c(beta2,beta3)), breaks=50)
 hist(beta2, xlim=range(c(beta2,beta3)), breaks=50)
 hist(beta2-beta3, breaks=50)
 
-
 z_om<-tapply(THBW_egg_noRep[[trait]]-mu_pred_cond-mu_pred_cont, THBW_egg_noRep$dam_P, mean, na.rm=TRUE)
 z_nm<-tapply(THBW_egg_noRep[[trait]], THBW_egg_noRep$dam_P, function(x){sum(!is.na(x))})
 z_m<-(THBW_egg_noRep[[trait]]-mu_pred_cond-mu_pred_cont)[match(names(z_om), THBW_egg_noRep$bird_id)]
@@ -357,7 +374,7 @@ z_n<-z_n[complete]
 
 mu_eg<-0.5*dp2cp(g_st, family="ST")[1]+sum(unlist(lapply(e_st, function(x){dp2cp(x, family="ST")[1]})))
 
-mt<-lm(z_o~offset(I(Eg_p)[match(z_p, pred_points)]), weights=z_n)
+mt<-lm(z_o~offset(I(Eg_p)[match(z_p, Wplot.points)]), weights=z_n)
 
 mu_eg<-coef(mt) # not sure why these differ by so much!
 
@@ -368,7 +385,7 @@ if(save_plot){
 par(mar=c(5,5,1,1),mfrow=c(2,1))
 hist(THBW_egg_noRep[[trait]]-mu_pred_cond-mu_pred_cont, col="grey",main="", xlab=paste(trait), breaks=30)
 
-plot(I(Eg_p+mu_eg)~Wplot.points, xlim=range(THBW_egg_noRep[[trait]]-mu_pred_cond-mu_pred_cont), ylim=range(z_o), type="l", xlab="Parent", ylab="Offspring", lwd=2, col="red")
+plot(I(colMeans(Eg_p)+mu_eg)~Wplot.points, xlim=range(THBW_egg_noRep[[trait]]-mu_pred_cond-mu_pred_cont), ylim=range(z_o), type="l", xlab="Parent", ylab="Offspring", lwd=2, col="red")
 
 #for(i in 1:npoints){
 #   arrows(pred_points[i], (Eg_p+mu_eg)[i], pred_points[i]+0.1, (Eg_p+mu_eg)[i]+0.1*dEg_p[i], length=0.1)
@@ -378,7 +395,7 @@ plot(I(Eg_p+mu_eg)~Wplot.points, xlim=range(THBW_egg_noRep[[trait]]-mu_pred_cond
 points(z_o~z_p, cex=0.3*sqrt(z_n))
 
 m1<-lm(z_o~z_p, weights=z_n)
-mt<-lm(z_o~offset(I(Eg_p+mu_eg)[match(z_p, pred_points)])-1, weights=z_n)          
+mt<-lm(z_o~offset(I(Eg_p+mu_eg)[match(z_p, Wplot.points)])-1, weights=z_n)          
 
 z_pred<-predict(m1, newdata=list(z_p=Wplot.points), interval="confidence")
 
