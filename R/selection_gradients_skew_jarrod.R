@@ -20,9 +20,9 @@ if(Sys.info()["user"]=="jhadfiel"){
 source(paste0(wd,"R/functions.R"))
 
 trait<-"tarsus_mm"
-re_run<-TRUE
-save<-TRUE
-posterior_mean<-FALSE
+re_run<-FALSE
+save<-FALSE
+posterior_mean<-TRUE
 save_plot<-FALSE
 cond_term<-c("year", "sex") # terms to condition on 
 cont_term<-c("timeC")   	# terms to control for
@@ -148,8 +148,6 @@ if(re_run){
     h2b <- matrix(NA, n_it, 1)         # heritability before selection
 
 	int_opt<- matrix(NA, n_it, n_comb)
-
-	nplot.points<-2
 
     if(grepl("even", zpoints)){
     	Wplot.points<-seq(min(z), max(z), as.numeric(gsub("parents+", "", zpoints)))+zmean_center
@@ -298,17 +296,17 @@ if(re_run){
 	abline(v=mean(z_sub)+attr(z, "scaled:center"), col="grey")
 
 	if(save & po_reg){
-		save(beta1,beta2, beta3, int_opt, Wplot, Wplot.points, h2a, h2b, Eg_p, dEg_p, dz_p, file=paste0(wd,"Data/Intermediate/selection_gradient_",if(is.null(posterior_mean)){""}else{"pm_"}, if(is.null(posterior_mean)){""}else{"po_"}, if(is.null(cond_term)){""}else{"by_"}, trait,"_",format(Sys.time(), "%Y%m%d_%H%M"),".Rdata"))
+		save(beta1,beta2, beta3, int_opt, Wplot, Wplot.points, h2a, h2b, Eg_p, dEg_p, dz_p, file=paste0(wd,"Data/Intermediate/selection_gradient_",if(is.null(posterior_mean)){""}else{"pm_"}, if(is.null(po_reg)){""}else{"po_"}, if(is.null(cond_term)){""}else{"by_"}, trait,"_",format(Sys.time(), "%Y%m%d_%H%M"),".Rdata"))
 	}
 	if(save & !po_reg){
-		save(beta1,beta2, beta3, int_opt, Wplot, Wplot.points, h2a, h2b, file=paste0(wd,"Data/Intermediate/selection_gradient_",if(is.null(posterior_mean)){""}else{"pm_"}, if(is.null(posterior_mean)){""}else{"po_"}, if(is.null(cond_term)){""}else{"by_"}, trait,"_",format(Sys.time(), "%Y%m%d_%H%M"),".Rdata"))
+		save(beta1,beta2, beta3, int_opt, Wplot, Wplot.points, h2a, h2b, file=paste0(wd,"Data/Intermediate/selection_gradient_",if(is.null(posterior_mean)){""}else{"pm_"}, if(is.null(po_reg)){""}else{"po_"}, if(is.null(cond_term)){""}else{"by_"}, trait,"_",format(Sys.time(), "%Y%m%d_%H%M"),".Rdata"))
 	}
 
 
 }else{
 
 	files<-list.files(paste0(wd,"Data/Intermediate/"))
-	files<-files[grep(paste0("selection_gradient_",if(is.null(posterior_mean)){""}else{"pm_"}, if(is.null(cond_term)){""}else{"by_"}, trait), files)]
+	files<-files[grep(paste0("selection_gradient_",if(is.null(posterior_mean)){""}else{"pm_"}, if(is.null(po_reg)){""}else{"po_"}, if(is.null(cond_term)){""}else{"by_"}, trait), files)]
 	if(length(files)>1){warning("Multiple selection_gradient files, using the last one")}
 	load(paste0(wd,"Data/Intermediate/", files[length(files)]))
 }
