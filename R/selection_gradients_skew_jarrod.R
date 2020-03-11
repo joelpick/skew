@@ -402,9 +402,12 @@ z_n<-z_n[complete]
 mu_eg<-0.5*dp2cp(g_st, family="ST")[1]+sum(unlist(lapply(e_st, function(x){dp2cp(x, family="ST")[1]})))
 
 m1<-lm(z_o~z_p, weights=z_n)
-mt<-lm(z_o~offset(I(Eg_p)[match(z_p,Wplot.points)]), weights=z_n)
+m2<-lm(z_o~offset(I(Eg_p)[match(z_p,Wplot.points)]), weights=z_n)
+m3<-lm(z_o~offset(mean(h2a/2)*z_p), weights=z_n)
+m4<-lm(z_o~offset(mean(h2b/2)*z_p), weights=z_n)
 
-mu_eg<-coef(mt) # not sure why these differ by so much!
+
+mu_eg<-coef(m2) # not sure why these differ by so much!
 
 if(save_plot){
   pdf(paste0(wd, "Tex/PO_", trait, ".pdf"))
@@ -430,21 +433,11 @@ lines(z_pred[,1]~Wplot.points, lty=1)
 lines(z_pred[,2]~Wplot.points, lty=2)
 lines(z_pred[,3]~Wplot.points, lty=2)
 
+lines(coef(m3)+mean(h2a/2)*Wplot.points~Wplot.points, col="red")
+lines(coef(m4)+mean(h2b/2)*Wplot.points~Wplot.points, col="blue")
+
+
 if(save_plot){
 dev.off()
 }
 
-
-n<-100000
-z1<-rnorm(n,2, 2)
-z2<-sin(z1+0.5)+rnorm(n)
-w<-plogis(z1)
-s<-rbinom(n, 1, prob=w)
-w<-w/mean(w)
-cov(z1[s==1], z2[s==1])/var(z1[s==1])
-cov(z1, z2)/var(z1)
-
-(mean(w*z1*z2)-mean(w*z1)*mean(w*z2))/mean((w*z1^2)-mean(w*z1)^2)
-
-
-cov(w*z1, z2)/cov(w*z1, z1)
