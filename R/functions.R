@@ -7,35 +7,12 @@ rbind_notAnnoying <- function(..., names=NULL){
   do.call(rbind,y)
 }
 
-download_bluetit <- function(tables, dir){
-	links <- list(
-		tMORPH = "3gcvx",
-		tNEST_SURVEY = "7dm4v",
-		tEGGS = "bvfkg",
-		tBIRDS = "958x7",
-		tEXTRACTIONS = "68fz9",
-		tGENOTYPES = "bmke2",
-		tIB = "s75pj",
-		tIBSTAT = "4dcgb"
-		
-	)
-	links_to_save <- links[tables]
-	for (i in 1:length(links_to_save)){
-		Link <- paste0("https://osf.io/",links_to_save[[i]],"/download")
-		FullPath <- paste0(dir,"/",names(links_to_save)[i],".csv")
-		httr::GET(Link,httr::write_disk(FullPath, overwrite = TRUE))
-	}
-}
-
 
 days_from_minimum <- function(dates,format="%F") as.numeric(strptime(dates,format=format) - min(strptime(dates,format=format)))/c(60*60*24)
-
 
 april_day <- function(date, format="%F") (as.numeric(strptime(date,format=format)) - as.numeric(strptime(paste0(format(strptime(date,format=format),"%Y"),"-04-01"),format="%F")))/c(60*60*24) + 1
 
 un_april_day <- function(april_date, year) as.character(strptime(paste0(year,"-04-01"),format="%F") + (april_date-1)*(60*60*24))
-
-
 
 nest_to_exclude <- function(tMORPH, tNEST_SURVEY){
 ## nests where eggs not found before chicks
@@ -57,7 +34,6 @@ nest_to_exclude <- function(tMORPH, tNEST_SURVEY){
 }
 
 april_hatch_date <- function(dates, format="%F") april_day( min(strptime(dates,format=format)))
-
 
 male_presence <- function(tNEST_SURVEY,tMORPH){
 	## assign whether a male was seen or not at each nest, from nest surveys, during chick phase
@@ -120,6 +96,14 @@ groupFunc_vectorC <- function(dat, var, FUN) {
 n_unique <- function(x) length(unique(x))
 
 mean_CI <- function(x) c(mean(x),quantile(x, c(0.025,0.975)))
+
+pars_ST <- function(model, variable){
+	summary(model)$summary[paste(c("xi","omega", "alpha", "nu"),variable, sep="_"),c(1,4,8)]
+}
+pars <- function(model, par){
+	out <- summary(model)$summary
+	out[grep(par, rownames(out)),c(1,4,8)]
+}
 
 ## function to get variances out of asreml object
 var_out <- function(mod){
@@ -254,6 +238,25 @@ factorisePed <- function(pedigree, unknown=0){
     colnames(new_ped) <- colnames(pedigree)[1:3]
 
     return(new_ped)
+}
+
+pin<-function (object, transform) {
+    pframe <- as.list(object$gammas)
+    names(pframe) <- sub("!.*\\..*$", "", names(pframe))
+	names(pframe) <- sub(".*\\((\\w*)\\).*$", "\\1", names(pframe))
+    tvalue <- eval(deriv(transform[[length(transform)]], names(pframe)), 
+        pframe)
+    X <- as.vector(attr(tvalue, "gradient"))
+    tname <- if (length(transform) == 3) 
+        transform[[2]]
+    else ""
+    Vmat <- object$ai
+    n <- length(pframe)
+    i <- rep(1:n, 1:n)
+    j <- sequence(1:n)
+    k <- 1 + (i > j)
+    se <- sqrt(sum(Vmat * X[i] * X[j] * k))
+    data.frame(row.names = tname, Estimate = tvalue, SE = se)
 }
 
 mskt<-function(xi=0, omega=1, alpha=0, nu=Inf, dp=NULL){
