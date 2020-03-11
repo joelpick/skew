@@ -687,11 +687,13 @@ h2<-function(n, g_st=NULL, e_st=NULL, adj_mean=NULL, mu_etaz=NULL, V_etaz=NULL, 
   if(after){
 	  g<-rst(n, dp=g_st)
 	  zp<-g+rz(n, e_st)
-	  zo<-0.5*g+rz(n, e_st)+rst(n, dp=g_st)/2
+	  zo<-0.5*g+rz(n, e_st)+rst(n, dp=g_st)*sqrt(0.75)
 
 	  if(!is.null(adj_mean)){
 	    adj_mean<-adj_mean-mu[1]
 	    mu[1]<-mu[1]+adj_mean
+	  }else{
+	  	adj_mean<-0
 	  }	
 	 
 	  zp<-zp+adj_mean
@@ -700,10 +702,7 @@ h2<-function(n, g_st=NULL, e_st=NULL, adj_mean=NULL, mu_etaz=NULL, V_etaz=NULL, 
 	  wz<-sapply(zp, w_func, mu_etaz=mu_etaz, V_etaz=V_etaz, beta=beta, gamma=gamma,  V_nest=V_nest)
 	  wz<-wz/mean(wz)
 
-	  S<-mean(wz*zp)-mu[1]
-	  C<-mean(wz*(zp-mu[1])^2)-mu[2]
-
-	  h2<-cov(zo,zp*wz)/(mu[2]+C-S^2)
+      h2<-2*(mean(wz*zp*zo)-mean(wz*zp)*mean(wz*zo))/mean((wz*zp^2)-mean(wz*zp)^2)
 
    }else{
    	  h2<-dp2cm(g_st, family="ST")[2]/mu[2]

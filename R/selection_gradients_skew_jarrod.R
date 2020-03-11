@@ -20,21 +20,24 @@ if(Sys.info()["user"]=="jhadfiel"){
 source(paste0(wd,"R/functions.R"))
 
 trait<-"tarsus_mm"
-re_run<-FALSE
-save<-FALSE
+re_run<-TRUE
+save<-TRUE
 posterior_mean<-TRUE
 save_plot<-FALSE
 cond_term<-c("year", "sex") # terms to condition on 
 cont_term<-c("timeC")   	# terms to control for
 model_moments<-FALSE 		# when calculating selection gradients should model-based or sample moments be used
-po_reg<-FALSE                # should the PO-regression, its derivative and the density function for the trait be calculated         
+po_reg<-TRUE               # should the PO-regression, its derivative and the density function for the trait be calculated
+h2a_it<-100000               # number of simulated data to approximate h2a        
 
-zpoints<-"parents+0.1" 
+zpoints<-"cparents+0.1" 
 # po-regression and fitness function to be evaluated at trait values: 
 # even: spread evenly over the range    
 # parents: equal to those that become parents
 # parents+: equal to those that become parents + evenly spaced phenotypes up to the min/max
+# cparents/cparents+: equal to those that become parents minus the posterior mean prediction from the cond/contr variables
 # numerical value after even and parents+ determines the spacing
+
 
 load(paste0(wd,"Data/Intermediate/day15_survival_models_bv.Rdata"))
 # survival models (including 2010 when eggs weren't weight) and THBW is the data
@@ -149,14 +152,21 @@ if(re_run){
 
 	int_opt<- matrix(NA, n_it, n_comb)
 
+	nplot.points<-2
+
     if(grepl("even", zpoints)){
-    	Wplot.points<-seq(min(z), max(z), as.numeric(gsub("parents+", "", zpoints)))+zmean_center
+    	Wplot.points<-seq(min(z), max(z), as.numeric(gsub("even", "", zpoints)))+zmean_center
     }
-    if(grepl("parents", zpoints)){	
-		Wplot.points<-sort(unique(THBW_egg_noRep[[trait]][THBW_egg_noRep$bird_id%in%c(THBW_egg_noRep$dam_P, THBW_egg_noRep$sire_P)]))
+    if(grepl("parents", zpoints)){
+        if(grepl("cparents", zpoints)){
+        	z_p_corrected<-THBW_egg_noRep[[trait]]-mu_pred_condX%*%colMeans(model_zbeta[,pred_cond_pos, drop=FALSE])-mu_pred_contX%*%colMeans(model_zbeta[,pred_cont_pos, drop=FALSE])	
+		}else{
+			z_p_corrected<-THBW_egg_noRep[[trait]]
+		}  
+		Wplot.points<-sort(unique(z_p_corrected[THBW_egg_noRep$bird_id%in%c(THBW_egg_noRep$dam_P, THBW_egg_noRep$sire_P)]))
     }
     if(grepl("parents\\+", zpoints)){	
-		Wplot.points<-sort(unique(c(Wplot.points, seq(min(z), max(z), as.numeric(gsub("parents+", "", zpoints)))+zmean_center)))
+		Wplot.points<-sort(unique(c(Wplot.points, seq(min(z), max(z), as.numeric(gsub("c?parents\\+", "", zpoints)))+zmean_center)))
     }  
     # trait values at which to evaluate the fitness function for visualisation purposes
 
@@ -257,7 +267,7 @@ if(re_run){
 		    beta1[i,j]<-S/mu[2]  
 		    beta2[i,j]<-betaLA_2(mu, S=S, C=C, family="ST")
 		    beta3[i,j]<-mean(WD)/mean(W)
-			h2a[i,j]<-h2(10000, g_st=g_st, e_st=e_st, adj_mean=mu[1]-zmean_center, mu_etaz=mu_etaz, V_etaz=V_etaz, beta=beta, gamma=gamma,  V_nest=V_nest)
+			h2a[i,j]<-h2(h2a_it, g_st=g_st, e_st=e_st, adj_mean=mu[1], mu_etaz=mu_etaz, V_etaz=V_etaz, beta=beta, gamma=gamma,  V_nest=V_nest)
 
 		    int_opt[i,j]<-(WDmax<0 & WDmin>0)  # is there an internal stationary point
 		}
@@ -296,17 +306,17 @@ if(re_run){
 	abline(v=mean(z_sub)+attr(z, "scaled:center"), col="grey")
 
 	if(save & po_reg){
-		save(beta1,beta2, beta3, int_opt, Wplot, Wplot.points, h2a, h2b, Eg_p, dEg_p, dz_p, file=paste0(wd,"Data/Intermediate/selection_gradient_",if(is.null(posterior_mean)){""}else{"pm_"}, if(is.null(po_reg)){""}else{"po_"}, if(is.null(cond_term)){""}else{"by_"}, trait,"_",format(Sys.time(), "%Y%m%d_%H%M"),".Rdata"))
+		save(beta1,beta2, beta3, int_opt, Wplot, Wplot.points, h2a, h2b, Eg_p, dEg_p, dz_p, file=paste0(wd,"Data/Intermediate/selection_gradient_",if(is.null(posterior_mean)){""}else{"pm_"}, if(is.null(posterior_mean)){""}else{"po_"}, if(is.null(cond_term)){""}else{"by_"}, trait,"_",format(Sys.time(), "%Y%m%d_%H%M"),".Rdata"))
 	}
 	if(save & !po_reg){
-		save(beta1,beta2, beta3, int_opt, Wplot, Wplot.points, h2a, h2b, file=paste0(wd,"Data/Intermediate/selection_gradient_",if(is.null(posterior_mean)){""}else{"pm_"}, if(is.null(po_reg)){""}else{"po_"}, if(is.null(cond_term)){""}else{"by_"}, trait,"_",format(Sys.time(), "%Y%m%d_%H%M"),".Rdata"))
+		save(beta1,beta2, beta3, int_opt, Wplot, Wplot.points, h2a, h2b, file=paste0(wd,"Data/Intermediate/selection_gradient_",if(is.null(posterior_mean)){""}else{"pm_"}, if(is.null(posterior_mean)){""}else{"po_"}, if(is.null(cond_term)){""}else{"by_"}, trait,"_",format(Sys.time(), "%Y%m%d_%H%M"),".Rdata"))
 	}
 
 
 }else{
 
 	files<-list.files(paste0(wd,"Data/Intermediate/"))
-	files<-files[grep(paste0("selection_gradient_",if(is.null(posterior_mean)){""}else{"pm_"}, if(is.null(po_reg)){""}else{"po_"}, if(is.null(cond_term)){""}else{"by_"}, trait), files)]
+	files<-files[grep(paste0("selection_gradient_",if(is.null(posterior_mean)){""}else{"pm_"}, if(is.null(cond_term)){""}else{"by_"}, trait), files)]
 	if(length(files)>1){warning("Multiple selection_gradient files, using the last one")}
 	load(paste0(wd,"Data/Intermediate/", files[length(files)]))
 }
@@ -391,7 +401,8 @@ z_n<-z_n[complete]
 
 mu_eg<-0.5*dp2cp(g_st, family="ST")[1]+sum(unlist(lapply(e_st, function(x){dp2cp(x, family="ST")[1]})))
 
-mt<-lm(z_o~offset(I(Eg_p)[match(z_p, Wplot.points)]), weights=z_n)
+m1<-lm(z_o~z_p, weights=z_n)
+mt<-lm(z_o~offset(I(Eg_p)[match(z_p,Wplot.points)]), weights=z_n)
 
 mu_eg<-coef(mt) # not sure why these differ by so much!
 
@@ -411,8 +422,7 @@ plot(I(colMeans(Eg_p)+mu_eg)~Wplot.points, xlim=range(THBW_egg_noRep[[trait]]-mu
 
 points(z_o~z_p, cex=0.3*sqrt(z_n))
 
-m1<-lm(z_o~z_p, weights=z_n)
-mt<-lm(z_o~offset(I(Eg_p+mu_eg)[match(z_p, Wplot.points-zmean_center)]), weights=z_n)          
+
 
 z_pred<-predict(m1, newdata=list(z_p=Wplot.points), interval="confidence")
 
@@ -425,3 +435,16 @@ dev.off()
 }
 
 
+n<-100000
+z1<-rnorm(n,2, 2)
+z2<-sin(z1+0.5)+rnorm(n)
+w<-plogis(z1)
+s<-rbinom(n, 1, prob=w)
+w<-w/mean(w)
+cov(z1[s==1], z2[s==1])/var(z1[s==1])
+cov(z1, z2)/var(z1)
+
+(mean(w*z1*z2)-mean(w*z1)*mean(w*z2))/mean((w*z1^2)-mean(w*z1)^2)
+
+
+cov(w*z1, z2)/cov(w*z1, z1)
