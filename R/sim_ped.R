@@ -13,7 +13,6 @@ library(sn)
 library(rstan)
 library(cubature)
 
-library(doppelgangR)
 
 if(Sys.info()["user"]=="jhadfiel"){
 	wd <- "~/Work/Skew/"
@@ -194,7 +193,7 @@ rowMeans(sims)
 
 skewModPed_M$var[,1]
 skewModPed_M$var["A",1]/sum(skewModPed_M$var[,1])
-
-hist(sims[2,],breaks=20);abline(v=skewModPed_M$var["A",1])
-hist(sims[4,],breaks=20);abline(v=skewModPed_M$var["A",1]/sum(skewModPed_M$var[,1]))
-hist(sims[5,],breaks=20);abline(v=skewModPed_M$var["A",1]/sum(skewModPed_M$var[,1]))
+par(mfrow=c(2,2))
+hist(sims[2,],breaks=20);abline(v=skewModPed_M$var["A",1], main="asreml Va")
+hist(sims[4,],breaks=20);abline(v=skewModPed_M$var["A",1]/sum(skewModPed_M$var[,1]), main="asreml h2")
+hist(sims[5,],breaks=20);abline(v=skewModPed_M$var["A",1]/sum(skewModPed_M$var[,1]), main="po-regression")

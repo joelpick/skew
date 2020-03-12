@@ -305,139 +305,164 @@ if(re_run){
 	plot(WD[order(z_sub)]~I(z_sub[order(z_sub)]+attr(z, "scaled:center")), type="l", ylab="Fitness Derivative", xlab=paste(trait), lwd=2, col="red")
 	abline(v=mean(z_sub)+attr(z, "scaled:center"), col="grey")
 
+    files<-"selection_gradient_",if(is.null(posterior_mean)){""}else{"pm_"}, if(is.null(posterior_mean)){""}else{"po_"}, if(is.null(cond_term)){""}else{"by_"}, trait,"_",format(Sys.time(), "%Y%m%d_%H%M"),".Rdata")
+
 	if(save & po_reg){
-		save(beta1,beta2, beta3, int_opt, Wplot, Wplot.points, h2a, h2b, Eg_p, dEg_p, dz_p, file=paste0(wd,"Data/Intermediate/selection_gradient_",if(is.null(posterior_mean)){""}else{"pm_"}, if(is.null(posterior_mean)){""}else{"po_"}, if(is.null(cond_term)){""}else{"by_"}, trait,"_",format(Sys.time(), "%Y%m%d_%H%M"),".Rdata"))
+		save(beta1,beta2, beta3, int_opt, Wplot, Wplot.points, h2a, h2b, Eg_p, dEg_p, dz_p, file=paste0(wd,"Data/Intermediate/", files))
 	}
 	if(save & !po_reg){
-		save(beta1,beta2, beta3, int_opt, Wplot, Wplot.points, h2a, h2b, file=paste0(wd,"Data/Intermediate/selection_gradient_",if(is.null(posterior_mean)){""}else{"pm_"}, if(is.null(posterior_mean)){""}else{"po_"}, if(is.null(cond_term)){""}else{"by_"}, trait,"_",format(Sys.time(), "%Y%m%d_%H%M"),".Rdata"))
+		save(beta1,beta2, beta3, int_opt, Wplot, Wplot.points, h2a, h2b, file=paste0(wd,"Data/Intermediate/", files))
 	}
 
 
 }else{
 
 	files<-list.files(paste0(wd,"Data/Intermediate/"))
-	files<-files[grep(paste0("selection_gradient_",if(is.null(posterior_mean)){""}else{"pm_"}, if(is.null(cond_term)){""}else{"by_"}, trait), files)]
+	files<-files[grep(paste0("selection_gradient_",if(is.null(posterior_mean)){""}else{"pm_"}, if(is.null(posterior_mean)){""}else{"po_"}, if(is.null(cond_term)){""}else{"by_"}, trait), files)]
 	if(length(files)>1){warning("Multiple selection_gradient files, using the last one")}
 	load(paste0(wd,"Data/Intermediate/", files[length(files)]))
 }
 
-if(save_plot){
-  pdf(paste0(wd, "Tex/W_", trait, ".pdf"))
+
+if(!posterior_mean){
+
+	if(save_plot){
+	  pdf(paste0(wd, "Tex/W_", trait, ".pdf"))
+	}
+
+	par(mar=c(5,5,1,1),mfrow=c(2,1))
+
+	hist(THBW_egg_noRep[[trait]], col="grey",main="", xlab=paste(trait), breaks=30)
+
+
+	THBW_egg_noRep$binned<-bin(THBW_egg_noRep[[trait]])
+	THBW_egg_noRep$w<-THBW$recruit[match(THBW_egg_noRep$bird_id, THBW$bird_id)]
+
+	post_it<-seq(1, nrow(Wplot), 15)
+
+	plot(colMeans(Wplot)~Wplot.points, lwd=2, xlim=range(THBW_egg_noRep[[trait]]),  ylim=c(0,max(Wplot[post_it,])), xlab=paste(trait), ylab="Fitness", type="l")
+
+
+	for(i in post_it){
+
+		lines(Wplot[i,]~Wplot.points, col="red", lwd=0.01)
+	}
+
+	lines(colMeans(Wplot)~Wplot.points, lwd=2)
+
+	binPoints(w~binned, THBW_egg_noRep)
+
+	if(save_plot){
+		dev.off()
+	}
+
+
+	beta1<-rowMeans(beta1)
+	beta2<-rowMeans(beta2)
+	beta3<-rowMeans(beta3)
+
+	par(mfrow=c(3,1))
+	hist(beta3, xlim=range(c(beta1,beta3)), breaks=50)
+	hist(beta1, xlim=range(c(beta1,beta3)), breaks=50)
+	hist(beta1-beta3, breaks=50)
+
+	par(mfrow=c(3,1))
+	hist(beta3, xlim=range(c(beta2,beta3)), breaks=50)
+	hist(beta2, xlim=range(c(beta2,beta3)), breaks=50)
+	hist(beta2-beta3, breaks=50)
+
+	p_summary<-list(b1=c(mean(beta1), HPDinterval(mcmc(beta1))), b2=c(mean(beta2), HPDinterval(mcmc(beta2))), b3=c(mean(beta3), HPDinterval(mcmc(beta3))), b1.3=c(mean(beta1-beta3), HPDinterval(mcmc(beta1-beta3))), b2.3=c(mean(beta2-beta3), HPDinterval(mcmc(beta2-beta3)), h2a=rowMeans(h2a), h2b=h2b))
+
+	if(save){
+		save(p_summary, file=paste0(wd,"Data/Intermediate/", gsub("selection_gradient", "selection_gradient_psummary", files)))
+	}
+}	
+
+if(posterior_mean){
+
+	mu_pred_cond<-mu_pred_condX%*%colMeans(model_zbeta[,pred_cond_pos, drop=FALSE])
+	mu_pred_cont<-mu_pred_contX%*%colMeans(model_zbeta[,pred_cont_pos, drop=FALSE])
+	mu_pred<-mu_predX%*%colMeans(model_zbeta[,pred_pos])
+
+	e_st<-list(n_st=colMeans(model_znbeta[,paste0(t_terms, "_nest")]),
+		       e_st=colMeans(model_znbeta[,paste0(t_terms, if(trait=="weight_g"){"_E"}else{"_ind"})]), 
+		       fixed_st=doppelgangR::st.mle(y = mu_pred)$dp)
+
+	g_st<-c(0, mean(model_znbeta[,"sigma_A"]), 0, 1e+16)
+
+	# gets the posterior mean predictions and distribution parameters for plotting
+
+
+	z_om<-tapply(THBW_egg_noRep[[trait]]-mu_pred_cond-mu_pred_cont, THBW_egg_noRep$dam_P, mean, na.rm=TRUE)
+	z_nm<-tapply(THBW_egg_noRep[[trait]], THBW_egg_noRep$dam_P, function(x){sum(!is.na(x))})
+	z_m<-(THBW_egg_noRep[[trait]]-mu_pred_cond-mu_pred_cont)[match(names(z_om), THBW_egg_noRep$bird_id)]
+
+	z_of<-tapply(THBW_egg_noRep[[trait]]-mu_pred_cond-mu_pred_cont, THBW_egg_noRep$sire_P, mean, na.rm=TRUE)
+	z_nf<-tapply(THBW_egg_noRep[[trait]], THBW_egg_noRep$sire_P, function(x){sum(!is.na(x))})
+	z_f<-(THBW_egg_noRep[[trait]]-mu_pred_cond-mu_pred_cont)[match(names(z_of), THBW_egg_noRep$bird_id)]
+
+	z_o<-c(z_om, z_of)
+	z_p<-c(z_m, z_f)
+	z_n<-c(z_nm, z_nf)
+
+	complete<-which(!is.na(z_p) & !is.na(z_o))
+
+	z_o<-z_o[complete]
+	z_p<-z_p[complete]
+	z_n<-z_n[complete]
+
+
+	mu_eg<-0.5*dp2cp(g_st, family="ST")[1]+sum(unlist(lapply(e_st, function(x){dp2cp(x, family="ST")[1]})))
+
+	m1<-lm(z_o~z_p, weights=z_n)
+	m2<-lm(z_o~offset(I(Eg_p)[match(z_p,Wplot.points)]), weights=z_n)
+	m3<-lm(z_o~offset(mean(h2a/2)*z_p), weights=z_n)
+	m4<-lm(z_o~offset(mean(h2b/2)*z_p), weights=z_n)
+
+
+	mu_eg<-coef(m2) # not sure why these differ by so much!
+
+	if(save_plot){
+	  pdf(paste0(wd, "Tex/PO_", trait, ".pdf"))
+	}
+
+	par(mar=c(5,5,1,1),mfrow=c(2,1))
+	hist(THBW_egg_noRep[[trait]]-mu_pred_cond-mu_pred_cont, col="grey",main="", xlab=paste(trait), breaks=30)
+
+	plot(I(colMeans(Eg_p)+mu_eg)~Wplot.points, xlim=range(THBW_egg_noRep[[trait]]-mu_pred_cond-mu_pred_cont), ylim=range(z_o), type="l", xlab="Parent", ylab="Offspring", lwd=2, col="red")
+
+	#for(i in 1:npoints){
+	#   arrows(pred_points[i], (Eg_p+mu_eg)[i], pred_points[i]+0.1, (Eg_p+mu_eg)[i]+0.1*dEg_p[i], length=0.1)
+	#}
+	# check to make sure derivative correct
+
+	points(z_o~z_p, cex=0.3*sqrt(z_n))
+
+
+
+	z_pred<-predict(m1, newdata=list(z_p=Wplot.points), interval="confidence")
+
+	lines(z_pred[,1]~Wplot.points, lty=1)
+	lines(z_pred[,2]~Wplot.points, lty=2)
+	lines(z_pred[,3]~Wplot.points, lty=2)
+
+	#lines(coef(m3)+mean(h2a/2)*Wplot.points~Wplot.points, col="red")
+	#lines(coef(m4)+mean(h2b/2)*Wplot.points~Wplot.points, col="blue")
+
+
+	if(save_plot){
+	dev.off()
+	}
+
+	m_summary<-list(m1.2=anova(m1, m2)$`Pr(>F)`[2], m1.3=anova(m1, m3)$`Pr(>F)`[2], m1.4=anova(m1, m4)$`Pr(>F)`[2])
+
+	if(save){
+		save(m_summary, file=paste0(wd,"Data/Intermediate/", gsub("selection_gradient", "selection_gradient_msummary", files)))
+	}
 }
 
 
 
-par(mar=c(5,5,1,1),mfrow=c(2,1))
-
-hist(THBW_egg_noRep[[trait]], col="grey",main="", xlab=paste(trait), breaks=30)
 
 
-THBW_egg_noRep$binned<-bin(THBW_egg_noRep[[trait]])
-THBW_egg_noRep$w<-THBW$recruit[match(THBW_egg_noRep$bird_id, THBW$bird_id)]
-
-post_it<-seq(1, nrow(Wplot), 15)
-
-plot(colMeans(Wplot)~Wplot.points, lwd=2, xlim=range(THBW_egg_noRep[[trait]]),  ylim=c(0,max(Wplot[post_it,])), xlab=paste(trait), ylab="Fitness", type="l")
-
-
-for(i in post_it){
-
-	lines(Wplot[i,]~Wplot.points, col="red", lwd=0.01)
-}
-
-lines(colMeans(Wplot)~Wplot.points, lwd=2)
-
-binPoints(w~binned, THBW_egg_noRep)
-
-if(save_plot){
-dev.off()
-}
-
-beta1<-rowMeans(beta1)
-beta2<-rowMeans(beta2)
-beta3<-rowMeans(beta3)
-
-par(mfrow=c(3,1))
-hist(beta3, xlim=range(c(beta1,beta3)), breaks=50)
-hist(beta1, xlim=range(c(beta1,beta3)), breaks=50)
-hist(beta1-beta3, breaks=50)
-
-par(mfrow=c(3,1))
-hist(beta3, xlim=range(c(beta2,beta3)), breaks=50)
-hist(beta2, xlim=range(c(beta2,beta3)), breaks=50)
-hist(beta2-beta3, breaks=50)
-
-mu_pred_cond<-mu_pred_condX%*%colMeans(model_zbeta[,pred_cond_pos, drop=FALSE])
-mu_pred_cont<-mu_pred_contX%*%colMeans(model_zbeta[,pred_cont_pos, drop=FALSE])
-mu_pred<-mu_predX%*%colMeans(model_zbeta[,pred_pos])
-
-e_st<-list(n_st=colMeans(model_znbeta[,paste0(t_terms, "_nest")]),
-	       e_st=colMeans(model_znbeta[,paste0(t_terms, if(trait=="weight_g"){"_E"}else{"_ind"})]), 
-	       fixed_st=doppelgangR::st.mle(y = mu_pred)$dp)
-
-g_st<-c(0, mean(model_znbeta[,"sigma_A"]), 0, 1e+16)
-
-# gets the posterior mean predictions and distribution parameters for plotting
-
-
-z_om<-tapply(THBW_egg_noRep[[trait]]-mu_pred_cond-mu_pred_cont, THBW_egg_noRep$dam_P, mean, na.rm=TRUE)
-z_nm<-tapply(THBW_egg_noRep[[trait]], THBW_egg_noRep$dam_P, function(x){sum(!is.na(x))})
-z_m<-(THBW_egg_noRep[[trait]]-mu_pred_cond-mu_pred_cont)[match(names(z_om), THBW_egg_noRep$bird_id)]
-
-z_of<-tapply(THBW_egg_noRep[[trait]]-mu_pred_cond-mu_pred_cont, THBW_egg_noRep$sire_P, mean, na.rm=TRUE)
-z_nf<-tapply(THBW_egg_noRep[[trait]], THBW_egg_noRep$sire_P, function(x){sum(!is.na(x))})
-z_f<-(THBW_egg_noRep[[trait]]-mu_pred_cond-mu_pred_cont)[match(names(z_of), THBW_egg_noRep$bird_id)]
-
-z_o<-c(z_om, z_of)
-z_p<-c(z_m, z_f)
-z_n<-c(z_nm, z_nf)
-
-complete<-which(!is.na(z_p) & !is.na(z_o))
-
-z_o<-z_o[complete]
-z_p<-z_p[complete]
-z_n<-z_n[complete]
-
-
-mu_eg<-0.5*dp2cp(g_st, family="ST")[1]+sum(unlist(lapply(e_st, function(x){dp2cp(x, family="ST")[1]})))
-
-m1<-lm(z_o~z_p, weights=z_n)
-m2<-lm(z_o~offset(I(Eg_p)[match(z_p,Wplot.points)]), weights=z_n)
-m3<-lm(z_o~offset(mean(h2a/2)*z_p), weights=z_n)
-m4<-lm(z_o~offset(mean(h2b/2)*z_p), weights=z_n)
-
-
-mu_eg<-coef(m2) # not sure why these differ by so much!
-
-if(save_plot){
-  pdf(paste0(wd, "Tex/PO_", trait, ".pdf"))
-}
-
-par(mar=c(5,5,1,1),mfrow=c(2,1))
-hist(THBW_egg_noRep[[trait]]-mu_pred_cond-mu_pred_cont, col="grey",main="", xlab=paste(trait), breaks=30)
-
-plot(I(colMeans(Eg_p)+mu_eg)~Wplot.points, xlim=range(THBW_egg_noRep[[trait]]-mu_pred_cond-mu_pred_cont), ylim=range(z_o), type="l", xlab="Parent", ylab="Offspring", lwd=2, col="red")
-
-#for(i in 1:npoints){
-#   arrows(pred_points[i], (Eg_p+mu_eg)[i], pred_points[i]+0.1, (Eg_p+mu_eg)[i]+0.1*dEg_p[i], length=0.1)
-#}
-# check to make sure derivative correct
-
-points(z_o~z_p, cex=0.3*sqrt(z_n))
-
-
-
-z_pred<-predict(m1, newdata=list(z_p=Wplot.points), interval="confidence")
-
-lines(z_pred[,1]~Wplot.points, lty=1)
-lines(z_pred[,2]~Wplot.points, lty=2)
-lines(z_pred[,3]~Wplot.points, lty=2)
-
-lines(coef(m3)+mean(h2a/2)*Wplot.points~Wplot.points, col="red")
-lines(coef(m4)+mean(h2b/2)*Wplot.points~Wplot.points, col="blue")
-
-
-if(save_plot){
-dev.off()
-}
 
