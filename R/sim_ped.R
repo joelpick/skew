@@ -193,7 +193,12 @@ rowMeans(sims)
 
 skewModPed_M$var[,1]
 skewModPed_M$var["A",1]/sum(skewModPed_M$var[,1])
+
+true_h2<-rep(skewModPed_M$var["A",1]/sum(skewModPed_M$var[,1]), n_sims)
+true_h2a<-rep(0.192137, n_sims)
+
+
 par(mfrow=c(2,2))
-hist(sims[2,],breaks=20);abline(v=skewModPed_M$var["A",1], main="asreml Va")
-hist(sims[4,],breaks=20);abline(v=skewModPed_M$var["A",1]/sum(skewModPed_M$var[,1]), main="asreml h2")
-hist(sims[5,],breaks=20);abline(v=skewModPed_M$var["A",1]/sum(skewModPed_M$var[,1]), main="po-regression")
+hist(sims[2,],breaks=20, main="asreml Va");abline(v=skewModPed_M$var["A",1], col="red")
+hist(sims[4,],breaks=20, main="asreml h2");abline(v=skewModPed_M$var["A",1]/sum(skewModPed_M$var[,1]), col="red");abline(v=0.192137, col="blue")
+hist(sims[5,],breaks=20, main="po-regression");abline(v=skewModPed_M$var["A",1]/sum(skewModPed_M$var[,1]), col="red");abline(v=0.192137, col="blue")
