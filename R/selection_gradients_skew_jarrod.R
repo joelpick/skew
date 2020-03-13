@@ -477,12 +477,11 @@ if(posterior_mean){
 	axis(4)
 	mtext("Difference in Normal Density from Inferred Density", side = 4, padj=4)
 	lines(dzn_p-dz_p[1,]~Wplot.points)
-	
+
 	abline(h=0, lty=2)
 	if(save_plot){
 	dev.off()
 	}
-
 
 	m_summary<-list(m1.2=anova(m1, m2)$`Pr(>F)`[2], m1.3=anova(m1, m3)$`Pr(>F)`[2], m1.4=anova(m1, m4)$`Pr(>F)`[2])
 
@@ -490,7 +489,7 @@ if(posterior_mean){
 		save(m_summary, file=paste0(wd,"Data/Intermediate/", gsub("selection_gradient", "selection_gradient_msummary", files)))
 	}
 }
-stop()
+
 
 
 
