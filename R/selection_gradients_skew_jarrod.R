@@ -27,8 +27,8 @@ save_plot<-FALSE
 cond_term<-c("year", "sex") # terms to condition on 
 cont_term<-c("timeC")   	# terms to control for
 model_moments<-FALSE 		# when calculating selection gradients should model-based or sample moments be used
-po_reg<-TRUE               # should the PO-regression, its derivative and the density function for the trait be calculated
-h2a_it<-100000               # number of simulated data to approximate h2a        
+po_reg<-TRUE                # should the PO-regression, its derivative and the density function for the trait be calculated
+h2a_it<-10000              # number of simulated data to approximate h2a        
 
 zpoints<-"cparents+0.1" 
 # po-regression and fitness function to be evaluated at trait values: 
@@ -150,9 +150,10 @@ if(re_run){
 	h2a <- matrix(NA, n_it, n_comb)    # heritability after selection
     h2b <- matrix(NA, n_it, 1)         # heritability before selection
 
-	int_opt<- matrix(NA, n_it, n_comb)
+	dmax<- matrix(NA, n_it, n_comb)    # derivative of the fitness function at the smallest trait value
+    dmin<- matrix(NA, n_it, n_comb)    # derivative of the fitness function at the largest trait value
 
-	nplot.points<-2
+
 
     if(grepl("even", zpoints)){
     	Wplot.points<-seq(min(z), max(z), as.numeric(gsub("even", "", zpoints)))+zmean_center
@@ -177,7 +178,8 @@ if(re_run){
 
     Wplot<-matrix(NA, n_it, nplot.points)   # fitness function averaged over categories
 
-    dz_p<-matrix(NA, n_it, nplot.points)    # phenotypic density function 
+    dz_p<-matrix(NA, n_it, nplot.points)    # phenotypic density function
+    dzn_p<-matrix(NA, n_it, nplot.points)   # phenotypic density function assuming normality
     Eg_p<-matrix(NA, n_it, nplot.points)    # parent-offspring regression 
     dEg_p<-matrix(NA, n_it, nplot.points)   # derivative of parent-offspring regression 
        
@@ -198,6 +200,11 @@ if(re_run){
 		# list of genetic distribution parameters
 
         if(po_reg){
+
+        	mu<-dp2cm(c(list(g_st), e_st), family="ST")
+
+            dzn_p[i,] <-dnorm(Wplot.points, mu[1], sqrt(mu[2]))
+
 	        for(j in 1:nplot.points){
 			    dz_p[i,j] <-dz(Wplot.points[j], g_st=g_st, e_st=e_st)
 			    Eg_p[i,j] <-POreg(Wplot.points[j],  g_st=g_st, e_st=e_st)
@@ -259,17 +266,18 @@ if(re_run){
 			}  
 
 	        S<-mean(W*z_sub/mean(W))-mu[1]
-	        # selection differential calculated conditional on observed (mean-centered) trait value
+	        # selection differential calculated conditional on observed (mean-centred) trait value
 
-	        C<-mean(W*((z_sub-mu[1])^2)/mean(W))-mu[1]
-            # quadratic selection differential calculated conditional on observed (mean-centered) trait value
+	        C<-mean(W*((z_sub-mu[1])^2)/mean(W))-mu[2]
+            # quadratic selection differential calculated conditional on observed (mean-centred) trait value
 
 		    beta1[i,j]<-S/mu[2]  
 		    beta2[i,j]<-betaLA_2(mu, S=S, C=C, family="ST")
 		    beta3[i,j]<-mean(WD)/mean(W)
 			h2a[i,j]<-h2(h2a_it, g_st=g_st, e_st=e_st, adj_mean=mu[1], mu_etaz=mu_etaz, V_etaz=V_etaz, beta=beta, gamma=gamma,  V_nest=V_nest)
 
-		    int_opt[i,j]<-(WDmax<0 & WDmin>0)  # is there an internal stationary point
+		    dmax[i,j]<-WDmax  # is there an internal stationary point
+		    dmin[i,j]<-WDmin
 		}
 
 		Wplot[i,]<-colMeans(Wplot_tmp)  # average fitness function
@@ -305,21 +313,24 @@ if(re_run){
 	plot(WD[order(z_sub)]~I(z_sub[order(z_sub)]+attr(z, "scaled:center")), type="l", ylab="Fitness Derivative", xlab=paste(trait), lwd=2, col="red")
 	abline(v=mean(z_sub)+attr(z, "scaled:center"), col="grey")
 
-    files<-"selection_gradient_",if(is.null(posterior_mean)){""}else{"pm_"}, if(is.null(posterior_mean)){""}else{"po_"}, if(is.null(cond_term)){""}else{"by_"}, trait,"_",format(Sys.time(), "%Y%m%d_%H%M"),".Rdata")
+    files<-paste0("selection_gradient_",if(posterior_mean){"pm_"}else{""}, if(po_reg){"po_"}else{""}, if(is.null(cond_term)){""}else{"by_"}, trait,"_",format(Sys.time(), "%Y%m%d_%H%M"),".Rdata")
 
 	if(save & po_reg){
-		save(beta1,beta2, beta3, int_opt, Wplot, Wplot.points, h2a, h2b, Eg_p, dEg_p, dz_p, file=paste0(wd,"Data/Intermediate/", files))
+		save(beta1,beta2, beta3, dmin, dmax, Wplot, Wplot.points, h2a, h2b, Eg_p, dEg_p, dz_p, file=paste0(wd,"Data/Intermediate/", files))
 	}
 	if(save & !po_reg){
-		save(beta1,beta2, beta3, int_opt, Wplot, Wplot.points, h2a, h2b, file=paste0(wd,"Data/Intermediate/", files))
+		save(beta1,beta2, beta3, dmin, dmax, Wplot, Wplot.points, h2a, h2b, file=paste0(wd,"Data/Intermediate/", files))
 	}
 
 
 }else{
 
 	files<-list.files(paste0(wd,"Data/Intermediate/"))
-	files<-files[grep(paste0("selection_gradient_",if(is.null(posterior_mean)){""}else{"pm_"}, if(is.null(posterior_mean)){""}else{"po_"}, if(is.null(cond_term)){""}else{"by_"}, trait), files)]
-	if(length(files)>1){warning("Multiple selection_gradient files, using the last one")}
+	files<-files[grep(paste0("selection_gradient_",if(posterior_mean){"pm_"}else{""}, if(po_reg){"po_"}else{""}, if(is.null(cond_term)){""}else{"by_"}, trait), files)]
+	if(length(files)>1){
+		warning("Multiple selection_gradient files, using the last one")
+	    files<-files[length(files)]
+	}
 	load(paste0(wd,"Data/Intermediate/", files[length(files)]))
 }
 
@@ -371,7 +382,7 @@ if(!posterior_mean){
 	hist(beta2, xlim=range(c(beta2,beta3)), breaks=50)
 	hist(beta2-beta3, breaks=50)
 
-	p_summary<-list(b1=c(mean(beta1), HPDinterval(mcmc(beta1))), b2=c(mean(beta2), HPDinterval(mcmc(beta2))), b3=c(mean(beta3), HPDinterval(mcmc(beta3))), b1.3=c(mean(beta1-beta3), HPDinterval(mcmc(beta1-beta3))), b2.3=c(mean(beta2-beta3), HPDinterval(mcmc(beta2-beta3)), h2a=rowMeans(h2a), h2b=h2b))
+	p_summary<-list(b1=c(mean(beta1), HPDinterval(mcmc(beta1))), b2=c(mean(beta2), HPDinterval(mcmc(beta2))), b3=c(mean(beta3), HPDinterval(mcmc(beta3))), b1.3=c(mean(beta1-beta3), HPDinterval(mcmc(beta1-beta3))), b2.3=c(mean(beta2-beta3), HPDinterval(mcmc(beta2-beta3))), h2a=c(mean(rowMeans(h2a)), HPDinterval(mcmc(rowMeans(h2a)))), h2b=c(mean(rowMeans(h2b)), HPDinterval(mcmc(rowMeans(h2b)))), h2a.b=c(mean(rowMeans(h2a)/rowMeans(h2b)), HPDinterval(mcmc(rowMeans(h2a)/rowMeans(h2b)))),int_opt=sum(rowMeans(dmin)>0 & rowMeans(dmax)<0)/n_it)
 
 	if(save){
 		save(p_summary, file=paste0(wd,"Data/Intermediate/", gsub("selection_gradient", "selection_gradient_psummary", files)))
@@ -454,14 +465,32 @@ if(posterior_mean){
 	dev.off()
 	}
 
+
+	if(save_plot){
+	  pdf(paste0(wd, "Tex/dW_", trait, ".pdf"))
+	}
+
+	par( mar=c(5, 4, 4, 4))
+	plot(colMeans(dEg_p)~Wplot.points, type="l", col="red", axes=FALSE, xlab=paste(trait), ylim=c(-0.1, max(colMeans(dEg_p))), ylab=expression(paste(partialdiff,  "w(z)/", partialdiff, "z")))
+	axis(1)
+	axis(2, col = "red")
+	axis(4)
+	mtext("Difference in Normal Density from Inferred Density", side = 4, padj=4)
+	lines(dzn_p-dz_p[1,]~Wplot.points)
+	
+	abline(h=0, lty=2)
+	if(save_plot){
+	dev.off()
+	}
+
+
 	m_summary<-list(m1.2=anova(m1, m2)$`Pr(>F)`[2], m1.3=anova(m1, m3)$`Pr(>F)`[2], m1.4=anova(m1, m4)$`Pr(>F)`[2])
 
 	if(save){
 		save(m_summary, file=paste0(wd,"Data/Intermediate/", gsub("selection_gradient", "selection_gradient_msummary", files)))
 	}
 }
-
-
+stop()
 
 
 
