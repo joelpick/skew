@@ -310,7 +310,7 @@ make_stan_dat <- function(fixed, random, pedigree=NULL, data){
 }
 
 mean_CI <- function(x) c(mean(x),quantile(x, c(0.025,0.975)))
-
+se <- function(x) sd(x)/sqrt(length(x))
 bin <- function(x, n=10){
 	breaks<-seq(min(x, na.rm=TRUE),max(x, na.rm=TRUE)*1.0001,length.out=n+1)
 	xCat <- min(breaks) + (abs(breaks[2]-breaks[1]))*sapply(x,function(y) sum(y>=breaks)-0.5)
@@ -339,6 +339,41 @@ pars <- function(model, par){
   out <- summary(model)$summary
   out[grep(par, rownames(out)),c(1,4,8)]
 }
+
+
+
+effectPlot <- function(x, y=NULL,add=FALSE,offset=NULL, fixed=NULL, xlab="", ylab= "", xlim=NULL, col="black", cex.axis=1,pch=19,names=NULL,...){ 
+
+  ######################################################################
+  #    Makes a forest plot. Takes matrix of mean, 0.025 and 0.975 	#
+  ######################################################################
+
+	if(is.null(y)) y <- nrow(x):1
+	y_offset <- if(is.null(offset)){ y }else{ y + offset }
+	if(is.null(xlim)){
+		xlim<- if(min(x)>0 & max(x)>0) {c(0,max(x))
+		}else if(min(x)<0&max(x)<0) {c(min(x),0)
+		}else{	range(x)}}
+	if(is.null(names)) names <- rownames(x)
+	if(!add){	
+		plot(x[,1], y, xlab=xlab, ylab=ylab, xlim=xlim, col=0, yaxt="n", ylim=c(0.5,nrow(x)+0.5), cex.axis=cex.axis,...)#c(min(y)-0.5,max(x)+0.5)
+		axis(2,y,names,cex.axis=cex.axis*1.5, las=1)
+		abline(v=0, col="grey")
+	}
+	points(x[,1], y_offset, pch=pch, col=col, cex=1.5)
+	arrows(x[,2], y_offset, x[,3], y_offset, code=3, angle=180, length=0.01,col=col, lwd=1.5)
+	if(!is.null(fixed)){
+		points(x[fixed,1], y_offset[fixed], col="red", cex=1.75)
+
+	}
+}
+
+
+
+
+
+
+
 
 scm<-function(x, standardise=FALSE){
 
