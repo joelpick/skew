@@ -19,16 +19,16 @@ if(Sys.info()["user"]=="jhadfiel"){
 
 source(paste0(wd,"R/functions.R"))
 
-trait<-"tarsus_mm"
+trait<-"weight_g"
 re_run<-TRUE
-save<-TRUE
-posterior_mean<-TRUE
+save<-FALSE
+posterior_mean<-FALSE
 save_plot<-FALSE
 cond_term<-c("year", "sex") # terms to condition on 
 cont_term<-c("timeC")   	# terms to control for
 model_moments<-FALSE 		# when calculating selection gradients should model-based or sample moments be used
-po_reg<-TRUE                # should the PO-regression, its derivative and the density function for the trait be calculated
-h2a_it<-10000              # number of simulated data to approximate h2a        
+po_reg<-FALSE                # should the PO-regression, its derivative and the density function for the trait be calculated
+h2a_it<-10 #10000              # number of simulated data to approximate h2a        
 
 zpoints<-"cparents+0.1" 
 # po-regression and fitness function to be evaluated at trait values: 
@@ -154,7 +154,6 @@ if(re_run){
     dmin<- matrix(NA, n_it, n_comb)    # derivative of the fitness function at the largest trait value
 
 
-
     if(grepl("even", zpoints)){
     	Wplot.points<-seq(min(z), max(z), as.numeric(gsub("even", "", zpoints)))+zmean_center
     }
@@ -224,7 +223,6 @@ if(re_run){
 
 	    V_nest<-matrix(model_w$VCV[i,grep("nest", colnames(model_w$VCV))], 2,2)
 	     # nest covariance matrix from survival model
-	   
 
 	    for(j in 1:n_comb){
 
@@ -316,10 +314,10 @@ if(re_run){
     files<-paste0("selection_gradient_",if(posterior_mean){"pm_"}else{""}, if(po_reg){"po_"}else{""}, if(is.null(cond_term)){""}else{"by_"}, trait,"_",format(Sys.time(), "%Y%m%d_%H%M"),".Rdata")
 
 	if(save & po_reg){
-		save(beta1,beta2, beta3, dmin, dmax, Wplot, Wplot.points, h2a, h2b, Eg_p, dEg_p, dz_p, file=paste0(wd,"Data/Intermediate/", files))
+		save(beta1,beta2, beta3, dmin, dmax, Wplot, Wplot.points, h2a, h2b, Eg_p, dEg_p, dz_p, dzn_p, file=paste0(wd,"Data/Intermediate/", files), version=2)
 	}
 	if(save & !po_reg){
-		save(beta1,beta2, beta3, dmin, dmax, Wplot, Wplot.points, h2a, h2b, file=paste0(wd,"Data/Intermediate/", files))
+		save(beta1,beta2, beta3, dmin, dmax, Wplot, Wplot.points, h2a, h2b, file=paste0(wd,"Data/Intermediate/", files), version=2)
 	}
 
 
@@ -368,25 +366,16 @@ if(!posterior_mean){
 	}
 
 
-	beta1<-rowMeans(beta1)
-	beta2<-rowMeans(beta2)
-	beta3<-rowMeans(beta3)
+	par(mfrow=c(3,1))
+	hist(rowMeans(beta3), xlim=range(c(rowMeans(beta1),rowMeans(beta3))), breaks=50)
+	hist(rowMeans(beta1), xlim=range(c(rowMeans(beta1),rowMeans(beta3))), breaks=50)
+	hist(rowMeans(beta1)-rowMeans(beta3), breaks=50)
 
 	par(mfrow=c(3,1))
-	hist(beta3, xlim=range(c(beta1,beta3)), breaks=50)
-	hist(beta1, xlim=range(c(beta1,beta3)), breaks=50)
-	hist(beta1-beta3, breaks=50)
+	hist(rowMeans(beta3), xlim=range(c(rowMeans(beta2),rowMeans(beta3))), breaks=50)
+	hist(rowMeans(beta2), xlim=range(c(rowMeans(beta2),rowMeans(beta3))), breaks=50)
+	hist(rowMeans(beta2)-rowMeans(beta3), breaks=50)
 
-	par(mfrow=c(3,1))
-	hist(beta3, xlim=range(c(beta2,beta3)), breaks=50)
-	hist(beta2, xlim=range(c(beta2,beta3)), breaks=50)
-	hist(beta2-beta3, breaks=50)
-
-	p_summary<-list(b1=c(mean(beta1), HPDinterval(mcmc(beta1))), b2=c(mean(beta2), HPDinterval(mcmc(beta2))), b3=c(mean(beta3), HPDinterval(mcmc(beta3))), b1.3=c(mean(beta1-beta3), HPDinterval(mcmc(beta1-beta3))), b2.3=c(mean(beta2-beta3), HPDinterval(mcmc(beta2-beta3))), h2a=c(mean(rowMeans(h2a)), HPDinterval(mcmc(rowMeans(h2a)))), h2b=c(mean(rowMeans(h2b)), HPDinterval(mcmc(rowMeans(h2b)))), h2a.b=c(mean(rowMeans(h2a)/rowMeans(h2b)), HPDinterval(mcmc(rowMeans(h2a)/rowMeans(h2b)))),int_opt=sum(rowMeans(dmin)>0 & rowMeans(dmax)<0)/n_it)
-
-	if(save){
-		save(p_summary, file=paste0(wd,"Data/Intermediate/", gsub("selection_gradient", "selection_gradient_psummary", files)))
-	}
 }	
 
 if(posterior_mean){
@@ -476,17 +465,17 @@ if(posterior_mean){
 	axis(2, col = "red")
 	axis(4)
 	mtext("Difference in Normal Density from Inferred Density", side = 4, padj=4)
-	lines(dzn_p-dz_p[1,]~Wplot.points)
-
+	lines(I(dzn_p-dz_p[1,])~Wplot.points)
+	abline(v=mean(THBW_egg_noRep[[trait]], na.rm=T), col="grey")
 	abline(h=0, lty=2)
 	if(save_plot){
 	dev.off()
 	}
 
-	m_summary<-list(m1.2=anova(m1, m2)$`Pr(>F)`[2], m1.3=anova(m1, m3)$`Pr(>F)`[2], m1.4=anova(m1, m4)$`Pr(>F)`[2])
+	m_summary<-list(m1.2=anova(m1, m2)$`Pr(>F)`[2], m1.3=anova(m1, m3)$`Pr(>F)`[2], m1.4=anova(m1, m4)$`Pr(>F)`[2], po_reg2=coef(summary(m1))[2,1:2]*2)
 
 	if(save){
-		save(m_summary, file=paste0(wd,"Data/Intermediate/", gsub("selection_gradient", "selection_gradient_msummary", files)))
+		save(m_summary, file=paste0(wd,"Data/Intermediate/", gsub("selection_gradient", "selection_gradient_msummary", files)), version=2)
 	}
 }
 
