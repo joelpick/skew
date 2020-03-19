@@ -311,24 +311,23 @@ if(re_run){
 	plot(WD[order(z_sub)]~I(z_sub[order(z_sub)]+attr(z, "scaled:center")), type="l", ylab="Fitness Derivative", xlab=paste(trait), lwd=2, col="red")
 	abline(v=mean(z_sub)+attr(z, "scaled:center"), col="grey")
 
-    files<-paste0("selection_gradient_",if(posterior_mean){"pm_"}else{""}, if(po_reg){"po_"}else{""}, if(is.null(cond_term)){""}else{"by_"}, trait,"_",format(Sys.time(), "%Y%m%d_%H%M"),".Rdata")
+    files<-paste0("selection_gradient_",if(posterior_mean){"pm_"}else{""}, if(po_reg){"po_"}else{""}, if(is.null(cond_term)){""}else{"by_"}, trait)
+    files_date<-paste0(files,"_",format(Sys.time(), "%Y%m%d_%H%M"),".Rdata")
 
 	if(save & po_reg){
 		save(beta1,beta2, beta3, dmin, dmax, Wplot, Wplot.points, h2a, h2b, Eg_p, dEg_p, dz_p, dzn_p, file=paste0(wd,"Data/Intermediate/", files), version=2)
+		save(beta1,beta2, beta3, dmin, dmax, Wplot, Wplot.points, h2a, h2b, Eg_p, dEg_p, dz_p, dzn_p, file=paste0(wd,"Data/Intermediate/", files_date), version=2)
 	}
 	if(save & !po_reg){
 		save(beta1,beta2, beta3, dmin, dmax, Wplot, Wplot.points, h2a, h2b, file=paste0(wd,"Data/Intermediate/", files), version=2)
+		ave(beta1,beta2, beta3, dmin, dmax, Wplot, Wplot.points, h2a, h2b, file=paste0(wd,"Data/Intermediate/", files_date), version=2)
 	}
 
 
 }else{
 
 	files<-list.files(paste0(wd,"Data/Intermediate/"))
-	files<-files[grep(paste0("selection_gradient_",if(posterior_mean){"pm_"}else{""}, if(po_reg){"po_"}else{""}, if(is.null(cond_term)){""}else{"by_"}, trait), files)]
-	if(length(files)>1){
-		warning("Multiple selection_gradient files, using the last one")
-	    files<-files[length(files)]
-	}
+	files<-files[grep(paste0("selection_gradient_",if(posterior_mean){"pm_"}else{""}, if(po_reg){"po_"}else{""}, if(is.null(cond_term)){""}else{"by_"}, trait, ".Rdata"), files)]
 	load(paste0(wd,"Data/Intermediate/", files[length(files)]))
 }
 
@@ -476,6 +475,7 @@ if(posterior_mean){
 
 	if(save){
 		save(m_summary, file=paste0(wd,"Data/Intermediate/", gsub("selection_gradient", "selection_gradient_msummary", files)), version=2)
+		save(m_summary, file=paste0(wd,"Data/Intermediate/", gsub("selection_gradient", "selection_gradient_msummary", files_date)), version=2)
 	}
 }
 
