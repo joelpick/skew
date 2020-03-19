@@ -22,12 +22,15 @@ if(Sys.info()["user"]=="jhadfiel"){
 
 source(paste0(wd,"R/functions.R"))
 
+#cores <- 7
+rerun <- TRUE
+plot <- FALSE
 trait<-"weight_g"
 #posterior_mean<-TRUE
 cond_term<-c("year", "sex") # terms to condition on 
 cont_term<-c("timeC")   	# terms to control for
 normal <- TRUE
-xfoster <- FALSE
+xfoster <- TRUE
 
 ############################
 ## load in data
@@ -56,6 +59,8 @@ rm("mod_weight_bv", "mod_tarsus_bv")
 
 
 
+
+if(rerun){
 
 ############################
 ## simulation parameters
@@ -127,7 +132,7 @@ no<-10 ## needs to be even
 ng<-3
 
 
-n_sims <- 100
+n_sims <- 1000
 
 # sims <- mclapply(1:n_sims,function(j,nf=1000,no=10,ng=3){
 
@@ -148,7 +153,7 @@ for(j in 1:n_sims){
 	ped[,1][1:ni]<-1:ni
 	ped[,5][1:ni]<-1
 
-	for(i in 2:ng){
+		for(i in 2:ng){
 
 		W<-sapply(g+n+e-mu, w_func, mu_etaz=mu_etaz, V_etaz=V_etaz, beta=beta, gamma=gamma,  V_nest=V_nest)
 		    # fitness evaluated for each (mean-centred) trait value
@@ -171,11 +176,9 @@ for(j in 1:n_sims){
 
 		ped[(i-1)*ni+1:ni,4]<-g+n+e
 		ped[(i-1)*ni+1:ni,5]<-i
-		ped[(i-1)*ni+1:ni,6]<- as.numeric(paste0(0,i, if(xfoster){ rep(1:nf, each=no)[c((no/2+1):(ni),1:(no/2))] }else{ rep(1:nf, each=no) }))
+		ped[(i-1)*ni+1:ni,6]<- as.numeric(paste0(i, if(xfoster){ rep(1:nf, each=no)[c((no/2+1):(ni),1:(no/2))] }else{ rep(1:nf, each=no) }))
 	}
 	    # fitness evaluated for each (mean-centred) trait value
-
-
 
 	colnames(ped)<-c("id", "dam", "sire", "z", "generation","nurse")
 	ped_df<-as.data.frame(ped)
@@ -186,6 +189,9 @@ for(j in 1:n_sims){
 	ped_df$generation<-as.factor(ped_df$generation)
 	ped_df$nurse<-as.factor(ped_df$nurse)
 
+	#table(table(ped_df$nurse))
+	#table(table(paste(ped_df$dam,ped_df$nurse)))
+
 	## animal model
 	# ped.ainv1 <- asreml.Ainverse(ped[,1:3])
 	# assign("ped.ainv", ped.ainv1$ginv, envir = .GlobalEnv) 
@@ -195,9 +201,9 @@ for(j in 1:n_sims){
 	m1<-asreml(z~1, random=~nurse+giv(id), data=subset(ped_df, generation!=1), ginverse=list(id=sm2asreml(ped.ainv)),rcov = ~idv(units),trace=FALSE)
 	## parent-offspring regression
 	ped_df$pz <- (ped[ped[,"dam"],"z"] + ped[ped[,"sire"],"z"])/2
-	po_df <- aggregate(cbind(pz,z)~dam,ped_df,mean)
+	po_df <- na.omit(aggregate(cbind(pz,z)~dam,ped_df,mean))
 	
-
+#summary(m1)$var[c(2),2]/sum(summary(m1)$var[c(1,2,4),2])
 	out <- c(summary(m1)$var[c(1,2,4),2],h2_animal=pin(m1, h2_animal~id/(id+nurse+R))[1,1], h2_po =coef(lm(z~pz,po_df))[2])
 	names(out)[1:3] <- c("Vnest","Va","Ve")
 	cat(j," ")
@@ -210,21 +216,28 @@ for(j in 1:n_sims){
 
 save(sims, file= paste0(wd,"Data/Intermediate/sim_ped_",trait, "_", if(normal){"N"}else{"ST"}, if(xfoster){"_X"}else{""},".Rdata"))
 
+}
 
 
 #####
+if(plot){
+mu_pred<-stan_data_weight$X %*% pars(model_z,"beta")[,1]
 
-sim_Va <- sum_dat$var["A",]
-sim_h2 <- sum_dat$var["A",1]/sum(sum_dat$var[,1])
+obs_var <- sum_dat$var[,1]
+obs_var[1]
+var(mu_pred)
+sim_h2 <- obs_var["A"]/sum(obs_var)
 
+var(mu_pred)
 
 var(mu_pred) + pars(model_z,"sigma_E")[1]^2
+pars(model_z,"sigma")^2
 
 mean_CI2 <- function(x) c(mean(x),mean(x)+se(x)*qnorm(0.975),mean(x)-se(x)*qnorm(0.975))
 
 trait <- "weight_g"
 
-sim_data <- matrix(rep(c(sum_dat$var[c(3,2),1],sum_dat$var[1,1]+sum_dat$var[4,1],sim_h2,sim_h2),3),ncol=3)
+sim_data <- matrix(rep(c(obs_var[c(3,2)],var(mu_pred)+obs_var[4],sim_h2,sim_h2),3),ncol=3)
 
 load(file= paste0(wd,"Data/Intermediate/sim_ped_",trait, "_ST.Rdata"))
 simsST <- t(apply(sims,1,mean_CI2))
@@ -246,20 +259,16 @@ effectPlot(simsST,col=2,add=TRUE,offset=-0.1)
 effectPlot(simsN,col=3,add=TRUE,offset=-0.2)
 effectPlot(simsST_X,col=4,add=TRUE,offset=-0.3)
 legend("bottomright",c("observed","simulated skew T","simulated normal","simulated skew T with xfoster"), pch=19, col=1:4)
-t(apply(sims,1,mean_CI))
+
+}
+# rowMeans(sims)
+
+# true_h2<-rep(obs_var["A",1]/sum(obs_var[,1]), n_sims)
+# true_h2a<-rep(0.192137, n_sims)
 
 
-rowMeans(sims)
+# par(mfrow=c(2,2))
+# hist(sims[2,],breaks=20, main="asreml Va");abline(v=obs_var["A",1], col="red")
+# hist(sims[4,],breaks=20, main="asreml h2");abline(v=obs_var["A",1]/sum(obs_var[,1]), col="red");abline(v=0.192137, col="blue")
+# hist(sims[5,],breaks=20, main="po-regression");abline(v=obs_var["A",1]/sum(obs_var[,1]), col="red");abline(v=0.192137, col="blue")
 
-
-
-true_h2<-rep(sum_dat$var["A",1]/sum(sum_dat$var[,1]), n_sims)
-true_h2a<-rep(0.192137, n_sims)
-
-
-par(mfrow=c(2,2))
-hist(sims[2,],breaks=20, main="asreml Va");abline(v=sum_dat$var["A",1], col="red")
-hist(sims[4,],breaks=20, main="asreml h2");abline(v=sum_dat$var["A",1]/sum(sum_dat$var[,1]), col="red");abline(v=0.192137, col="blue")
-hist(sims[5,],breaks=20, main="po-regression");abline(v=sum_dat$var["A",1]/sum(sum_dat$var[,1]), col="red");abline(v=0.192137, col="blue")
-
-Assessing temperature-mediated phenological mismatch across taxa, biomes, and trophic levels
