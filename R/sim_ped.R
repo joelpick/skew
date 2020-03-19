@@ -70,8 +70,8 @@ mu_pred<-stan_data_weight$X %*% pars(model_z,"beta")[,1]
 
 e_st <- if(normal){
 	list(
-		n_st= c(0, pars(model_z,"sigma_nest")[1], 0, 1e+16),
-		e_st= c(0, pars(model_z,if(trait=="weight_g"){"sigma_E"}else{"sigma_ind"})[1], 0, 1e+16), 
+		n_st= c(0, sqrt(dp2cm(pars_ST(model_z,"nest")[,1],family="ST")[2]), 0, 1e+16),
+		e_st= c(0, sqrt(dp2cm(pars_ST(model_z,if(trait=="weight_g"){"E"}else{"ind"} )[,1],family="ST")[2]), 0, 1e+16), 
 		fixed_st = c(0, sd(mu_pred), 0, 1e+16)
 		)
 }else{
@@ -223,21 +223,21 @@ save(sims, file= paste0(wd,"Data/Intermediate/sim_ped_",trait, "_", if(normal){"
 if(plot){
 mu_pred<-stan_data_weight$X %*% pars(model_z,"beta")[,1]
 
-obs_var <- sum_dat$var[,1]
-obs_var[1]
-var(mu_pred)
-sim_h2 <- obs_var["A"]/sum(obs_var)
 
-var(mu_pred)
+obs_var <- c(
+	dp2cm(pars_ST(model_z,"nest")[,1],family="ST")[2],
+	pars(model_z,"sigma_A")[1]^2,
+	var(mu_pred) + dp2cm(pars_ST(model_z,if(trait=="weight_g"){"E"}else{"ind"} )[,1],family="ST")[2]
+	)
 
-var(mu_pred) + pars(model_z,"sigma_E")[1]^2
-pars(model_z,"sigma")^2
+sim_h2 <- obs_var[2]/sum(obs_var)
 
 mean_CI2 <- function(x) c(mean(x),mean(x)+se(x)*qnorm(0.975),mean(x)-se(x)*qnorm(0.975))
 
-trait <- "weight_g"
+pars(model_z,"sigma_nest")[1]^2
+dp2cm(pars_ST(model_z,"nest")[,1],family="ST")[2]
 
-sim_data <- matrix(rep(c(obs_var[c(3,2)],var(mu_pred)+obs_var[4],sim_h2,sim_h2),3),ncol=3)
+sim_data <- matrix(rep(c(obs_var,sim_h2,sim_h2),3),ncol=3)
 
 load(file= paste0(wd,"Data/Intermediate/sim_ped_",trait, "_ST.Rdata"))
 simsST <- t(apply(sims,1,mean_CI2))
@@ -261,6 +261,15 @@ effectPlot(simsST_X,col=4,add=TRUE,offset=-0.3)
 legend("bottomright",c("observed","simulated skew T","simulated normal","simulated skew T with xfoster"), pch=19, col=1:4)
 
 }
+
+
+simsST["Va",1] - sim_data["Va",1]
+simsST["Ve",1] - sim_data["Ve",1]
+simsST["Vnest",1] - sim_data["Vnest",1]
+(simsST["h2_animal",1] - sim_data["h2_animal",1])/sim_data["h2_animal",1]
+(simsST["h2_po",1] - sim_data["h2_po",1])/sim_data["h2_animal",1]
+
+
 # rowMeans(sims)
 
 # true_h2<-rep(obs_var["A",1]/sum(obs_var[,1]), n_sims)
