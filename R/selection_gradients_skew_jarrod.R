@@ -21,14 +21,14 @@ source(paste0(wd,"R/functions.R"))
 
 trait<-"weight_g"
 re_run<-TRUE
-save<-FALSE
+save<-TRUE
 posterior_mean<-FALSE
 save_plot<-FALSE
 cond_term<-c("year", "sex") # terms to condition on 
 cont_term<-c("timeC")   	# terms to control for
 model_moments<-FALSE 		# when calculating selection gradients should model-based or sample moments be used
 po_reg<-FALSE                # should the PO-regression, its derivative and the density function for the trait be calculated
-h2a_it<-10 #10000              # number of simulated data to approximate h2a        
+h2a_it<-10000              # number of simulated data to approximate h2a        
 
 zpoints<-"cparents+0.1" 
 # po-regression and fitness function to be evaluated at trait values: 
