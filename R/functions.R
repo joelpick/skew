@@ -600,12 +600,12 @@ cmvnorm<-function(mean=NULL, sigma=NULL, cond=NULL, keep_var, cond_var=NULL){
   #           mean and sigma are the unconditional means and (co)variances              #
   #######################################################################################
 		
-	cV <- sigma[keep_var,keep_var]-sigma[keep_var, -keep_var]%*%solve(sigma[-keep_var, -keep_var])%*%sigma[-keep_var, keep_var]
+	cV <- sigma[keep_var,keep_var]-sigma[keep_var, cond_var]%*%solve(sigma[cond_var, cond_var])%*%sigma[cond_var, keep_var]
 
 	if(length(dim(cond))==2){
-		cM <- sapply(1:nrow(cond), function(x) mean[keep_var]+sigma[keep_var, -keep_var]%*%solve(sigma[-keep_var, -keep_var])%*%(cond[x,]-mean)[-keep_var])
+		cM <- sapply(1:nrow(cond), function(x) mean[keep_var]+sigma[keep_var, cond_var]%*%solve(sigma[cond_var, cond_var])%*%(cond[x,]-mean)[cond_var])
 	}else{
-		cM <- mean[keep_var]+sigma[keep_var, -keep_var]%*%solve(sigma[-keep_var, -keep_var])%*%(cond-mean)[-keep_var]
+		cM <- mean[keep_var]+sigma[keep_var, cond_var]%*%solve(sigma[cond_var, cond_var])%*%(cond-mean)[cond_var]
 	}
 
 	return(list(cM=cM, cV=cV))

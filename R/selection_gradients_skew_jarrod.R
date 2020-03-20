@@ -21,14 +21,14 @@ source(paste0(wd,"R/functions.R"))
 
 trait<-"weight_g"
 re_run<-TRUE
-save<-FALSE
+save<-TRUE
 posterior_mean<-FALSE
 save_plot<-FALSE
 cond_term<-c("year", "sex") # terms to condition on 
 cont_term<-c("timeC")   	# terms to control for
 model_moments<-FALSE 		# when calculating selection gradients should model-based or sample moments be used
 po_reg<-FALSE                # should the PO-regression, its derivative and the density function for the trait be calculated
-h2a_it<-10 #10000              # number of simulated data to approximate h2a        
+h2a_it<-10000              # number of simulated data to approximate h2a        
 
 zpoints<-"cparents+0.1" 
 # po-regression and fitness function to be evaluated at trait values: 
@@ -147,8 +147,11 @@ if(re_run){
 	beta1 <- matrix(NA, n_it, n_comb)  # linear term in linear best fit
 	beta2 <- matrix(NA, n_it, n_comb)  # linear term in quadratic best fit
 	beta3 <- matrix(NA, n_it, n_comb)  # average gradient
+	    S <- matrix(NA, n_it, n_comb)  # selection differential
+
 	h2a <- matrix(NA, n_it, n_comb)    # heritability after selection
     h2b <- matrix(NA, n_it, 1)         # heritability before selection
+    Va <-  matrix(NA, n_it, 1) 
 
 	dmax<- matrix(NA, n_it, n_comb)    # derivative of the fitness function at the smallest trait value
     dmin<- matrix(NA, n_it, n_comb)    # derivative of the fitness function at the largest trait value
@@ -211,7 +214,8 @@ if(re_run){
 	        }
         }
 
-        h2b[i]<-dp2cm(g_st, family="ST")[2]/dp2cm(c(list(g_st), e_st), family="ST")[2]
+        Va[i]<-dp2cm(g_st, family="ST")[2]
+        h2b[i]<-Va[i]/dp2cm(c(list(g_st), e_st), family="ST")[2]
 
 		eta1 <- X_eta1%*%model_w$Sol[i,eta1_pos]
 		eta2 <- X_eta2%*%model_w$Sol[i,eta2_pos]
@@ -263,17 +267,16 @@ if(re_run){
 			  # If category j was not in the trait model (i.e. 2010), or model_moments=FALSE use the observed moments
 			}  
 
-	        S<-mean(W*z_sub/mean(W))-mu[1]
+	        S[i,j]<-mean(W*z_sub/mean(W))-mu[1]
 	        # selection differential calculated conditional on observed (mean-centred) trait value
 
 	        C<-mean(W*((z_sub-mu[1])^2)/mean(W))-mu[2]
             # quadratic selection differential calculated conditional on observed (mean-centred) trait value
 
-		    beta1[i,j]<-S/mu[2]  
-		    beta2[i,j]<-betaLA_2(mu, S=S, C=C, family="ST")
+		    beta1[i,j]<-S[i,j]/mu[2]  
+		    beta2[i,j]<-betaLA_2(mu, S=S[i,j], C=C, family="ST")
 		    beta3[i,j]<-mean(WD)/mean(W)
 			h2a[i,j]<-h2(h2a_it, g_st=g_st, e_st=e_st, adj_mean=mu[1], mu_etaz=mu_etaz, V_etaz=V_etaz, beta=beta, gamma=gamma,  V_nest=V_nest)
-
 		    dmax[i,j]<-WDmax  # is there an internal stationary point
 		    dmin[i,j]<-WDmin
 		}
@@ -314,10 +317,10 @@ if(re_run){
     files<-paste0("selection_gradient_",if(posterior_mean){"pm_"}else{""}, if(po_reg){"po_"}else{""}, if(is.null(cond_term)){""}else{"by_"}, trait,"_",format(Sys.time(), "%Y%m%d_%H%M"),".Rdata")
 
 	if(save & po_reg){
-		save(beta1,beta2, beta3, dmin, dmax, Wplot, Wplot.points, h2a, h2b, Eg_p, dEg_p, dz_p, dzn_p, file=paste0(wd,"Data/Intermediate/", files), version=2)
+		save(beta1,beta2, beta3, dmin, dmax, Wplot, Wplot.points, h2a, h2b, Eg_p, dEg_p, dz_p, dzn_p, S, Va, file=paste0(wd,"Data/Intermediate/", files), version=2)
 	}
 	if(save & !po_reg){
-		save(beta1,beta2, beta3, dmin, dmax, Wplot, Wplot.points, h2a, h2b, file=paste0(wd,"Data/Intermediate/", files), version=2)
+		save(beta1,beta2, beta3, dmin, dmax, Wplot, Wplot.points, h2a, h2b, S, Va, file=paste0(wd,"Data/Intermediate/", files), version=2)
 	}
 
 
