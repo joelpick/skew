@@ -19,7 +19,7 @@ if(Sys.info()["user"]=="jhadfiel"){
 
 source(paste0(wd,"R/functions.R"))
 
-trait<-"weight_g"
+trait<-"tarsus_mm"
 re_run<-TRUE
 save<-TRUE
 posterior_mean<-FALSE
