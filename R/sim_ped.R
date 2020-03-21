@@ -22,9 +22,9 @@ if(Sys.info()["user"]=="jhadfiel"){
 
 source(paste0(wd,"R/functions.R"))
 
-#cores <- 7
-rerun <- TRUE
-plot <- FALSE
+ncores <- 8
+rerun <- FALSE
+plot <- TRUE
 trait<-"weight_g"
 #posterior_mean<-TRUE
 cond_term<-c("year", "sex") # terms to condition on 
@@ -47,12 +47,10 @@ load(paste0(wd,"Data/Intermediate/stan_summary_data.Rdata"))
 
 if(trait=="weight_g"){
  model_w<-mod_weight_bv
- sum_dat <- skewModPed_M
  model_z<-get(load(paste0(wd,"Data/Intermediate/stanModWeightPedN20191220_0905.Rdata")))
 }
 if(trait=="tarsus_mm"){
  model_w<-mod_tarsus_bv
- sum_dat <- skewModPed_T
  model_z<-get(load(paste0(wd,"Data/Intermediate/stanModTarsus_pedN20191217_1716.Rdata")))
 }
 rm("mod_weight_bv", "mod_tarsus_bv")
@@ -134,10 +132,10 @@ ng<-3
 
 n_sims <- 1000
 
-# sims <- mclapply(1:n_sims,function(j,nf=1000,no=10,ng=3){
+sims <- mclapply(1:n_sims,function(j,nf=1000,no=10,ng=3){
 
-sims<-matrix(NA,5,n_sims)
-for(j in 1:n_sims){
+# sims<-matrix(NA,5,n_sims)
+# for(j in 1:n_sims){
 
 
 	ni<-nf*no	
@@ -196,7 +194,8 @@ for(j in 1:n_sims){
 	# ped.ainv1 <- asreml.Ainverse(ped[,1:3])
 	# assign("ped.ainv", ped.ainv1$ginv, envir = .GlobalEnv) 
 
-	ped.ainv <- inverseA(ped[,1:3])$Ainv
+	ped.ainv1 <- inverseA(ped[,1:3])$Ainv
+	assign("ped.ainv", ped.ainv1, envir = .GlobalEnv) 
 
 	m1<-asreml(z~1, random=~nurse+giv(id), data=subset(ped_df, generation!=1), ginverse=list(id=sm2asreml(ped.ainv)),rcov = ~idv(units),trace=FALSE)
 	## parent-offspring regression
@@ -207,12 +206,13 @@ for(j in 1:n_sims){
 	out <- c(summary(m1)$var[c(1,2,4),2],h2_animal=pin(m1, h2_animal~id/(id+nurse+R))[1,1], h2_po =coef(lm(z~pz,po_df))[2])
 	names(out)[1:3] <- c("Vnest","Va","Ve")
 	cat(j," ")
-	sims[,j]<-out
+	# sims[,j]<-out
 	rm("ped.ainv")
 
-	# return(out)
+	return(out)
 }
-# , mc.cores = 7)
+, mc.cores = ncores)
+sims <- do.call(cbind,sims)
 
 save(sims, file= paste0(wd,"Data/Intermediate/sim_ped_",trait, "_", if(normal){"N"}else{"ST"}, if(xfoster){"_X"}else{""},".Rdata"))
 
@@ -248,26 +248,32 @@ simsN <- t(apply(sims,1,mean_CI2))
 load(file= paste0(wd,"Data/Intermediate/sim_ped_",trait, "_ST_X.Rdata"))
 simsST_X <- t(apply(sims,1,mean_CI2))
 
-rownames(simsST) <-rownames(simsST_X) <- rownames(simsN) <- rownames(sim_data) <- c("Vnest","Va","Ve","h2_animal","h2_po")
+load(file= paste0(wd,"Data/Intermediate/sim_ped_",trait, "_N_X.Rdata"))
+simsN_X <- t(apply(sims,1,mean_CI2))
 
-dev.off()
 
-par(mar=c(5,10,1,1))
+rownames(simsN_X) <- rownames(simsST) <- rownames(simsST_X) <- rownames(simsN) <- rownames(sim_data) <- c("Vnest","Va","Ve","h2_animal","h2_po")
 
-effectPlot(sim_data,xlim=c(0,0.7))
-effectPlot(simsST,col=2,add=TRUE,offset=-0.1)
-effectPlot(simsN,col=3,add=TRUE,offset=-0.2)
-effectPlot(simsST_X,col=4,add=TRUE,offset=-0.3)
-legend("bottomright",c("observed","simulated skew T","simulated normal","simulated skew T with xfoster"), pch=19, col=1:4)
 
+{
+par(mar=c(4,8,1,1))
+
+effectPlot(sim_data,xlim=c(0.1,0.625),offset=0.2,pch="|")
+effectPlot(simsST,col=2,add=TRUE,offset=0.1,pch="|")
+effectPlot(simsN,col=3,add=TRUE,offset=0,pch="|")
+effectPlot(simsST_X,col=4,add=TRUE,offset=-0.1,pch="|")
+effectPlot(simsN_X,col=5,add=TRUE,offset=-0.2,pch="|")
+
+legend("bottomright",c("observed","simulated skew T","simulated normal","simulated skew T with xfoster","simulated normal with xfoster"), pch=19, col=1:5)
+}
 }
 
 
-simsST["Va",1] - sim_data["Va",1]
-simsST["Ve",1] - sim_data["Ve",1]
-simsST["Vnest",1] - sim_data["Vnest",1]
-(simsST["h2_animal",1] - sim_data["h2_animal",1])/sim_data["h2_animal",1]
-(simsST["h2_po",1] - sim_data["h2_po",1])/sim_data["h2_animal",1]
+# simsST["Va",1] - sim_data["Va",1]
+# simsST["Ve",1] - sim_data["Ve",1]
+# simsST["Vnest",1] - sim_data["Vnest",1]
+# (simsST["h2_animal",1] - sim_data["h2_animal",1])/sim_data["h2_animal",1]
+# (simsST["h2_po",1] - sim_data["h2_po",1])/sim_data["h2_animal",1]
 
 
 # rowMeans(sims)
