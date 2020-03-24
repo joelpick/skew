@@ -1,6 +1,17 @@
-rm(list=ls())
 
 # source("~/Work/Skew/R/selection_gradients_skew_jarrod.R")
+
+## for running remotely
+if(!exists("remote_run")){
+	rm(list=ls())
+
+	n_sims <- 2000
+	ncores <- 8
+	rerun <- FALSE
+	plot <- TRUE
+	normal <- TRUE
+	xfoster <- FALSE
+}
 
 options(width=Sys.getenv("COLUMNS"), stringsAsFactors=FALSE)
 
@@ -22,15 +33,10 @@ if(Sys.info()["user"]=="jhadfiel"){
 
 source(paste0(wd,"R/functions.R"))
 
-ncores <- 8
-rerun <- FALSE
-plot <- TRUE
 trait<-"weight_g"
 #posterior_mean<-TRUE
 cond_term<-c("year", "sex") # terms to condition on 
 cont_term<-c("timeC")   	# terms to control for
-normal <- TRUE
-xfoster <- TRUE
 
 ############################
 ## load in data
@@ -57,20 +63,19 @@ rm("mod_weight_bv", "mod_tarsus_bv")
 
 
 
-
-if(rerun){
-
 ############################
 ## simulation parameters
 ############################
 
 mu_pred<-stan_data_weight$X %*% pars(model_z,"beta")[,1]
 
+if(rerun){
+
 e_st <- if(normal){
 	list(
 		n_st= c(0, sqrt(dp2cm(pars_ST(model_z,"nest")[,1],family="ST")[2]), 0, 1e+16),
 		e_st= c(0, sqrt(dp2cm(pars_ST(model_z,if(trait=="weight_g"){"E"}else{"ind"} )[,1],family="ST")[2]), 0, 1e+16), 
-		fixed_st = c(0, sd(mu_pred), 0, 1e+16)
+		fixed_st = c(mean(mu_pred), sd(mu_pred), 0, 1e+16)
 		)
 }else{
 	list(
@@ -125,36 +130,37 @@ mu<-attr(THBW[,paste0(trait, "C")], "scaled:center")
 ############################
 
 
-nf<-1000
+nf<-2000
 no<-10 ## needs to be even
 ng<-3
 
-
-n_sims <- 1000
-
-sims <- mclapply(1:n_sims,function(j,nf=1000,no=10,ng=3){
+sims <- mclapply(1:n_sims,function(j){
 
 # sims<-matrix(NA,5,n_sims)
 # for(j in 1:n_sims){
-
 
 	ni<-nf*no	
 	
 	ped<-matrix(NA, nf*no*ng, 6)
 	## aniaml, dam, sire, phenotype(z), generation, nurse
 
+	## index for nurse id - depends on cross fostering
+	nurse_index <- if(xfoster){ c((no/2+1):(ni),1:(no/2)) }else{ 1:ni }
+
 	## generate breeding values, nest and residual effects
 	g<-rz(ni, list(g_st))
-	n<-rz(ni, list(e_st$n_st))
+	n<-rep(rz(nf, list(e_st$n_st)), each=no)[nurse_index]
 	e<-rz(ni, e_st[-which(names(e_st)=="n_st")])
 
-	ped[,1][1:ni]<-1:ni
-	ped[,5][1:ni]<-1
+	ped[1:ni,1]<-1:ni
+	ped[1:ni,4]<-g+n+e
+	ped[1:ni,5]<-1
+	ped[1:ni,6]<- as.numeric(paste0(1, rep(1:nf, each=no)[nurse_index]))
 
-		for(i in 2:ng){
+	for(i in 2:ng){
 
 		W<-sapply(g+n+e-mu, w_func, mu_etaz=mu_etaz, V_etaz=V_etaz, beta=beta, gamma=gamma,  V_nest=V_nest)
-		    # fitness evaluated for each (mean-centred) trait value
+		# fitness evaluated for each (mean-centred) trait value
 
 		## first half of previous gen pedigree are females/second half males
 		## sample who survives - n1/2 of each sex, with their survival probability based in their
@@ -168,15 +174,13 @@ sims <- mclapply(1:n_sims,function(j,nf=1000,no=10,ng=3){
 
 		## generate new breeding values, nest and residual effects
 		g<-(g[rep(dam, each=no)]+g[rep(sire, each=no)])/2+rz(ni, list(g_st))/sqrt(2)
-		n<-rep(rz(nf, list(e_st$n_st)), each=no)
-		if(xfoster) n<-n[c((no/2+1):(ni),1:(no/2))]
+		n<-rep(rz(nf, list(e_st$n_st)), each=no)[nurse_index]
 		e<-rz(ni, e_st[-which(names(e_st)=="n_st")])
 
 		ped[(i-1)*ni+1:ni,4]<-g+n+e
 		ped[(i-1)*ni+1:ni,5]<-i
-		ped[(i-1)*ni+1:ni,6]<- as.numeric(paste0(i, if(xfoster){ rep(1:nf, each=no)[c((no/2+1):(ni),1:(no/2))] }else{ rep(1:nf, each=no) }))
+		ped[(i-1)*ni+1:ni,6]<- as.numeric(paste0(i, rep(1:nf, each=no)[nurse_index]))
 	}
-	    # fitness evaluated for each (mean-centred) trait value
 
 	colnames(ped)<-c("id", "dam", "sire", "z", "generation","nurse")
 	ped_df<-as.data.frame(ped)
@@ -221,8 +225,6 @@ save(sims, file= paste0(wd,"Data/Intermediate/sim_ped_",trait, "_", if(normal){"
 
 #####
 if(plot){
-mu_pred<-stan_data_weight$X %*% pars(model_z,"beta")[,1]
-
 
 obs_var <- c(
 	dp2cm(pars_ST(model_z,"nest")[,1],family="ST")[2],
@@ -243,6 +245,7 @@ load(file= paste0(wd,"Data/Intermediate/sim_ped_",trait, "_ST.Rdata"))
 simsST <- t(apply(sims,1,mean_CI2))
 
 load(file= paste0(wd,"Data/Intermediate/sim_ped_",trait, "_N.Rdata"))
+#hist(sims[1,])
 simsN <- t(apply(sims,1,mean_CI2))
 
 load(file= paste0(wd,"Data/Intermediate/sim_ped_",trait, "_ST_X.Rdata"))
@@ -266,6 +269,8 @@ effectPlot(simsN_X,col=5,add=TRUE,offset=-0.2,pch="|")
 
 legend("bottomright",c("observed","simulated skew T","simulated normal","simulated skew T with xfoster","simulated normal with xfoster"), pch=19, col=1:5)
 }
+abline(v=c(0.132,0.16,0.182))
+
 }
 
 
@@ -274,6 +279,8 @@ legend("bottomright",c("observed","simulated skew T","simulated normal","simulat
 # simsST["Vnest",1] - sim_data["Vnest",1]
 # (simsST["h2_animal",1] - sim_data["h2_animal",1])/sim_data["h2_animal",1]
 # (simsST["h2_po",1] - sim_data["h2_po",1])/sim_data["h2_animal",1]
+
+# (simsST["Va",1] - sim_data["Va",1])/sim_data["Va",1]
 
 
 # rowMeans(sims)
