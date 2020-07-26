@@ -19,15 +19,15 @@ if(Sys.info()["user"]=="jhadfiel"){
 
 source(paste0(wd,"R/functions.R"))
 
-trait<-"weight_g"
+trait<-"tarsus_mm"
 re_run<-TRUE
 save<-TRUE
-posterior_mean<-FALSE
-save_plot<-FALSE
+posterior_mean<-TRUE
+save_plot<-TRUE
 cond_term<-c("year", "sex") # terms to condition on 
 cont_term<-c("timeC")   	# terms to control for
 model_moments<-FALSE 		# when calculating selection gradients should model-based or sample moments be used
-po_reg<-FALSE                # should the PO-regression, its derivative and the density function for the trait be calculated
+po_reg<-TRUE               # should the PO-regression, its derivative and the density function for the trait be calculated
 h2a_it<-10000              # number of simulated data to approximate h2a        
 
 zpoints<-"cparents+0.1" 
@@ -194,7 +194,9 @@ if(re_run){
 
 		e_st<-list(n_st=model_znbeta[i,paste0(t_terms, "_nest")],
 			       e_st=model_znbeta[i,paste0(t_terms, if(trait=="weight_g"){"_E"}else{"_ind"})], 
-			       fixed_st=doppelgangR::st.mle(y = mu_pred)$dp)
+			       fixed_st=st.mple(y = mu_pred)$dp)
+
+		st.mple
         # list of environmental distribution parameters: xi, omega, alpha, nu
         # fixed_st is a skew-t approximation for the marginal variable predictions 
 
@@ -388,8 +390,8 @@ if(posterior_mean){
 
 	e_st<-list(n_st=colMeans(model_znbeta[,paste0(t_terms, "_nest")]),
 		       e_st=colMeans(model_znbeta[,paste0(t_terms, if(trait=="weight_g"){"_E"}else{"_ind"})]), 
-		       fixed_st=doppelgangR::st.mle(y = mu_pred)$dp)
-
+		       fixed_st=st.mple(y = mu_pred)$dp)
+#
 	g_st<-c(0, mean(model_znbeta[,"sigma_A"]), 0, 1e+16)
 
 	# gets the posterior mean predictions and distribution parameters for plotting
@@ -461,18 +463,33 @@ if(posterior_mean){
 	  pdf(paste0(wd, "Tex/dW_", trait, ".pdf"))
 	}
 
-	par( mar=c(5, 4, 4, 4))
+	par(mar=c(5, 4, 4, 4), bty="l")
 	plot(colMeans(dEg_p)~Wplot.points, type="l", col="red", axes=FALSE, xlab=paste(trait), ylim=c(-0.1, max(colMeans(dEg_p))), ylab=expression(paste(partialdiff,  "w(z)/", partialdiff, "z")))
 	axis(1)
 	axis(2, col = "red")
 	axis(4)
 	mtext("Difference in Normal Density from Inferred Density", side = 4, padj=4)
-	lines(I(dzn_p-dz_p[1,])~Wplot.points)
+	lines(I(dzn_p[1,]-dz_p[1,])~Wplot.points)
 	abline(v=mean(THBW_egg_noRep[[trait]], na.rm=T), col="grey")
 	abline(h=0, lty=2)
 	if(save_plot){
 	dev.off()
 	}
+
+	if(save_plot){
+	  pdf(paste0(wd, "Tex/Wz_", trait, ".pdf"))
+	}
+
+    par(mar=c(5, 4, 4, 4), bty="l")
+
+   
+	plot(dz_p[1,]/sum(dz_p[1,])~Wplot.points, type="l", lwd=2, ylab="Density", xlab=paste(trait), ylim=c(0, max(dz_p[1,]*Wplot[1,])/sum(dz_p[1,]*Wplot[1,])))
+    lines((dz_p[1,]*Wplot[1,])/sum((dz_p[1,]*Wplot[1,]))~Wplot.points, col="red", lwd=2)
+
+	if(save_plot){
+	dev.off()
+	}
+
 
 	m_summary<-list(m1.2=anova(m1, m2)$`Pr(>F)`[2], m1.3=anova(m1, m3)$`Pr(>F)`[2], m1.4=anova(m1, m4)$`Pr(>F)`[2], po_reg2=coef(summary(m1))[2,1:2]*2)
 
