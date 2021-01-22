@@ -19,7 +19,7 @@ library(MasterBayes)
 
 data_wd <- paste0(wd,"Data/Raw/")
 
-source(paste0(wd,"R/functions.R"))
+source(paste0(wd,"R/00_functions.R"))
 
 tBIRDS <- read.csv(paste0(data_wd,"tBIRDS.csv"))
 tPED <- read.csv(paste0(data_wd,"tPED.csv"))
@@ -162,17 +162,15 @@ n_unique(THBW$nest)
 THBW[THBW$hatch_day==6,"hatch_day"]<-3
 
 # make factors into factors
-THBW$male_present <- as.factor(THBW$male_present)
+THBW$malePresent <- as.factor(THBW$male_present)
 THBW$year <- as.factor(THBW$year)
 THBW$sex <- as.factor(THBW$sex)
-THBW$hatch_day <- as.factor(THBW$hatch_day)
+THBW$hatchDay <- as.factor(THBW$hatch_day)
 
-
-## continuous variables centered
 THBW$timeC <- scale(THBW$time_hr, scale=FALSE)
-THBW$clutch_sizeC <- scale(THBW$clutch_size, scale=FALSE)
-THBW$nest_hatch_dateC <- scale(THBW$nest_hatch_date, scale=FALSE)
-THBW$egg_weightC <- scale(THBW$egg_weight, scale=FALSE)
+THBW$clutchSizeC <- scale(THBW$clutch_size, scale=FALSE)
+THBW$nestHatchDateC <- scale(THBW$nest_hatch_date, scale=FALSE)
+THBW$eggWeightC <- scale(THBW$egg_weight, scale=FALSE)
 
 THBW$tarsus_mmC <- scale(THBW$tarsus_mm, scale=FALSE)
 THBW$tarsus_mmC2 <- THBW$tarsus_mmC^2

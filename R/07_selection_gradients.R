@@ -9,6 +9,8 @@ library(sn)
 #library(rstan)
 library(cubature)
 library(parallel)
+library(viridis)
+library(scales)
 
 if(Sys.info()["user"]=="jhadfiel"){
 	wd <- "~/Work/Skew/"
@@ -17,15 +19,17 @@ if(Sys.info()["user"]=="jhadfiel"){
 }
 data_wd <- paste0(wd,"Data/Intermediate/")
 
-source(paste0(wd,"R/functions.R"))
+source(paste0(wd,"R/00_functions.R"))
 
+load(paste0(wd,"Data/Intermediate/analysis_options.Rdata"))
+reduced <- analysis_options$reduced
+cond_term<-analysis_options$cond_term  # terms to condition on 
+fixed_w <- analysis_options$fixed_w
 ncores <- 8
 n_it <- 1000
-reduced <- TRUE
-cond_term<-c("year", "sex") # terms to condition on 
-re_run <- FALSE
 nplot_points<- 100
-save_plot <- FALSE
+re_run <- FALSE
+save_plot <- TRUE
 
 
 # trait<-"headbill_mm"
@@ -74,7 +78,7 @@ if(re_run){
 		Wplot_points <- seq(min(z),max(z),length.out=nplot_points)
 
 		## extract relevant parameters from survival model 
-		attach(extract_w(model_w, trait, fixedEffects=formula(~ sex + male_present + year+hatch_day + clutch_sizeC + nest_hatch_dateC), data=THBW_noRep))
+		attach(extract_w(model_w, trait, fixedEffects=formula(paste("~", fixed_w)), data=THBW_noRep))
 
 		beta1 <- matrix(NA, n_it, n_comb)  # linear term in linear best fit
 		beta2 <- matrix(NA, n_it, n_comb)  # linear term in quadratic best fit
@@ -220,6 +224,7 @@ for(i in 1:length(trait)){
 
 	surv_plot(THBW_noRep[,trait[i]],THBW_noRep$recruit,t_pred,T_sol, xlab=trait_lab[i], scale=scales[i], col=inferno(5)[i])
 	beta_plot(rowMeans(beta3),rowMeans(beta1),rowMeans(beta2), col=inferno(5)[i])
+}
 }
 
 if(save_plot) dev.off()

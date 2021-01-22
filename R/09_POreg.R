@@ -20,12 +20,15 @@ if(Sys.info()["user"]=="jhadfiel"){
 }
 data_wd <- paste0(wd,"Data/Intermediate/")
 
-source(paste0(wd,"R/functions.R"))
+source(paste0(wd,"R/00_functions.R"))
+
+load(paste0(wd,"Data/Intermediate/analysis_options.Rdata"))
+
+reduced <- analysis_options$reduced
+cond_term<-analysis_options$cond_term  # terms to condition on 
+cont_term<-analysis_options$cont_term  # terms to control for 
 
 ncores <- 8
-reduced <- TRUE
-cond_term<-c("year", "sex") # terms to condition on 
-cont_term<-c("timeC")   	# terms to control for
 re_run_POreg<-FALSE
 n_it <- 1000
 zpoints<-"cparents+0.1" 

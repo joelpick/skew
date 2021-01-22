@@ -20,19 +20,20 @@ if(Sys.info()["user"]=="jhadfiel"){
 }
 data_wd <- paste0(wd,"Data/Intermediate/")
 
-source(paste0(wd,"R/functions.R"))
+source(paste0(wd,"R/00_functions.R"))
+
+load(paste0(wd,"Data/Intermediate/analysis_options.Rdata"))
+
+reduced <- analysis_options$reduced
+cond_term<-analysis_options$cond_term  # terms to condition on 
+cont_term<-analysis_options$cont_term  # terms to control for 
+fixed_w <- analysis_options$fixed_w
 
 ncores <- 8
-reduced <- TRUE
-cond_term<-c("year", "sex") # terms to condition on 
-cont_term<-c("timeC")   	# terms to control for
-re_run_POreg<-TRUE
-re_run_h2 <- TRUE
 n_it <- 1000
 h2a_it<-10000              # number of simulated data to approximate h2a        
-
-
-
+re_run_POreg<-TRUE
+re_run_h2 <- TRUE
 
 
 load(paste0(data_wd,"chick_data.Rdata"))
@@ -110,7 +111,7 @@ if(re_run_h2){
 		# add a category column to the data.frames used in the fitness and trait models (THBW_noRep)
 		# that designate data into the (n_comb) categories based on the conditioning variables
 
-		attach(extract_w(model_w, trait, fixedEffects=formula(~ sex + male_present + year+hatch_day + clutch_sizeC + nest_hatch_dateC), data=THBW_noRep))
+		attach(extract_w(model_w, trait, fixedEffects=formula(paste("~", fixed_w)), data=THBW_noRep))
 
 
 

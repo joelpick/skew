@@ -11,11 +11,9 @@ if(Sys.info()["user"]=="jhadfiel"){
 }else{
 	wd <- "~/Dropbox/0_blue_tits/skew/"
 }
-source(paste0(wd,"R/functions.R"))
+source(paste0(wd,"R/00_functions.R"))
 load(paste0(wd,"Data/Intermediate/chick_data.Rdata"))
 load(paste0(wd,"Data/Intermediate/analysis_options.Rdata"))
-
-reduced <- analysis_options$reduced
 
 
 ## function to get variances out of asreml object
@@ -52,44 +50,9 @@ inv_hessian_fixed <- function(formula,data,model) {
 
 }
 
-ainv<-ainverse(ped)
-
-THBW$animal <- factor(THBW$bird_id, levels=ped[,1])
-THBW$nest <- as.factor(THBW$nest)
-THBW$nest_orig <- as.factor(THBW$nest_orig)
-THBW$bird_id <- as.factor(THBW$bird_id)
-THBW$dam<-as.factor(THBW$dam)
-THBW$sire<-as.factor(THBW$sire)
-THBW$eggWeightC <- THBW$egg_weightC
-
-THBW_noRep$animal <- factor(THBW_noRep$bird_id, levels=ped[,1])
-THBW_noRep$nest <- as.factor(THBW_noRep$nest)
-THBW_noRep$nest_orig <- as.factor(THBW_noRep$nest_orig)
-THBW_noRep$bird_id <- as.factor(THBW_noRep$bird_id)
-THBW_noRep$dam<-as.factor(THBW_noRep$dam)
-THBW_noRep$sire<-as.factor(THBW_noRep$sire)
-THBW_noRep$eggWeightC <- THBW_noRep$egg_weightC
-
-THBW$malePresent <- THBW$male_present
-THBW$hatchDay <- THBW$hatch_day
-THBW$clutchSizeC <- THBW$clutch_sizeC
-THBW$nestHatchDateC <- THBW$nest_hatch_dateC
-
-THBW_noRep$malePresent <- THBW_noRep$male_present
-THBW_noRep$hatchDay <- THBW_noRep$hatch_day
-THBW_noRep$clutchSizeC <- THBW_noRep$clutch_sizeC
-THBW_noRep$nestHatchDateC <- THBW_noRep$nest_hatch_dateC
-
-
-
-
 # trait="tarsus_mm";data=THBW;ainv=ainv;reduced=TRUE
-asreml_mods <- function(trait, data, ainv, reduced=TRUE){
-	fixed <- if(reduced){ 
-		formula(paste(trait," ~ year + timeC + sex + eggWeightC") )
-	}else{
-		formula(paste(trait," ~ malePresent + clutchSizeC + nestHatchDateC  + hatchDay + year + timeC + sex + eggWeightC") )
-	}
+asreml_mods <- function(trait, data, ainv, fixed_z){
+	fixed <- as.formula(paste(c(trait,fixed_z) ,collapse=" "))
 	
 	# random_DS <- formula("~ nest + str(dam + and(sire), us(1):id(dam))")
 	random_DS <- formula("~ nest + nest_orig + sire")
@@ -132,9 +95,35 @@ asreml_mods <- function(trait, data, ainv, reduced=TRUE){
 	return(out)
 }
 
-modT <- asreml_mods(trait="tarsus_mm", data=THBW, ainv=ainv, reduced=reduced)
-modHB <- asreml_mods(trait="headbill_mm", data=THBW, ainv=ainv, reduced=reduced)
-modW <- asreml_mods(trait="wing_mm", data=THBW, ainv=ainv, reduced=reduced)
-modM <- asreml_mods(trait="weight_g", data=THBW_noRep, ainv=ainv, reduced=reduced)
 
-save(modT,modHB,modW,modM, file= paste0(wd,"Data/Intermediate/starting_values",if(reduced)"_reduced",".Rdata"))
+
+ainv<-ainverse(ped)
+
+
+## make factors for asreml random effects
+THBW$animal <- factor(THBW$bird_id, levels=ped[,1])
+THBW$nest <- as.factor(THBW$nest)
+THBW$nest_orig <- as.factor(THBW$nest_orig)
+THBW$bird_id <- as.factor(THBW$bird_id)
+THBW$dam<-as.factor(THBW$dam)
+THBW$sire<-as.factor(THBW$sire)
+
+THBW_noRep$animal <- factor(THBW_noRep$bird_id, levels=ped[,1])
+THBW_noRep$nest <- as.factor(THBW_noRep$nest)
+THBW_noRep$nest_orig <- as.factor(THBW_noRep$nest_orig)
+THBW_noRep$bird_id <- as.factor(THBW_noRep$bird_id)
+THBW_noRep$dam<-as.factor(THBW_noRep$dam)
+THBW_noRep$sire<-as.factor(THBW_noRep$sire)
+
+
+for(reduced in c(TRUE,FALSE)){
+
+	fixed_z <- if(reduced){ analysis_options$fixed_z_reduced }else{ analysis_options$fixed_z }
+	
+	modT <- asreml_mods(trait="tarsus_mm", data=THBW, ainv=ainv, fixed_z=fixed_z)
+	modHB <- asreml_mods(trait="headbill_mm", data=THBW, ainv=ainv, fixed_z=fixed_z)
+	modW <- asreml_mods(trait="wing_mm", data=THBW, ainv=ainv, fixed_z=fixed_z)
+	modM <- asreml_mods(trait="weight_g", data=THBW_noRep, ainv=ainv, fixed_z=fixed_z)
+
+	save(modT,modHB,modW,modM, file= paste0(wd,"Data/Intermediate/starting_values",if(reduced)"_reduced",".Rdata"))
+}

@@ -12,8 +12,11 @@ if(Sys.info()["user"]=="jhadfiel"){
 }
 
 load(paste0(wd,"Data/Intermediate/chick_data.Rdata"))
-source(paste0(wd,"R/functions.R"))
-#source(paste0(wd,"R/1_data_prep.R"))
+source(paste0(wd,"R/00_functions.R"))
+
+load(paste0(wd,"Data/Intermediate/analysis_options.Rdata"))
+fixed_w <- analysis_options$fixed_w
+
 
 ## make data in long format for survival analysis
 fledge_dat<-THBW_noRep
@@ -41,7 +44,8 @@ mclapply(c("tarsus_mm","headbill_mm","wing_mm","weight_g"), function(trait){
 	traitC <- paste0(trait,"C")
 	traitC2 <- paste0(trait,"C2")
 
-	fixed <- as.formula(paste0("survival ~ -1+ at.level(age,1):(age + ", traitC," + ", traitC2, " + sex + male_present + year + hatch_day + clutch_sizeC + nest_hatch_dateC)+ at.level(age,2):(age + ", traitC," + ", traitC2, " + sex + male_present + year + hatch_day + clutch_sizeC + nest_hatch_dateC)"))
+	fixed <- as.formula(paste0("survival ~ -1+ at.level(age,1):(age + ", traitC," + ", traitC2, " + ",fixed_w,")+ at.level(age,2):(age + ", traitC," + ", traitC2, " + ",fixed_w,")"))
+
 
 	model_w <- MCMCglmm(fixed=fixed, random=~us(age):nest, data=surv_dat, prior=prior_bv, family="threshold", nitt=13000*it_scale, thin=10*it_scale, burnin=3000*it_scale)
 
