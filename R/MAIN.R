@@ -63,7 +63,7 @@ source(paste0(wd,"R/02_stan_data.R"))
 
 source(paste0(wd,"R/03_generate_starting_values.R"))
 ## Runs similarly structured asreml models assuming normality
-## Produces "Data/Intermediate/starting_values.Rdata", which contains lists:
+## Produces "Data/Intermediate/starting_values.Rdata" and "Data/Intermediate/starting_values.Rdata", which contains lists:
 ## - modT - tarsus asreml model results
 ## - modHB - head-bill asreml model results
 ## - modW - wing asreml model results
@@ -87,12 +87,12 @@ source(paste0(wd,"R/06_survival_analysis.R"))
 ## Runs
 ## Produces
 
+########################################
+## Run selection gradient code
+########################################
 
-3_jarrod_script1.R
-3_jarrod_script2.R
-
-3_sim_ped.R
-
+source(paste0(wd,"R/07_selection_gradients.R"))
+## Runs
+## Produces
 
 
-1_MA_data.R
