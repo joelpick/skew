@@ -28,20 +28,20 @@ load(paste0(wd,"Data/Intermediate/starting_values",if(reduced)"_reduced",".Rdata
 load(paste0(wd,"Data/Intermediate/stan_data",if(reduced)"_reduced",".Rdata"))
 
 
-
+#names(makeSV(modT, stan_data_ped_noRep, ME=TRUE, delta=TRUE))
 
 ###-----------------------------###
 ###-----All models--------------###
 ###-----------------------------###
 
-for (trait in c("tarsus_mm","wing_mm")){
+for (trait in c("tarsus_mm","headbill_mm","wing_mm","weight_g")){
 # trait="tarsus_mm"
 	if(trait=="weight_g"){
 		stan_data_trait <- stan_data_ped_noRep
-		stanModel_pedN <- cmdstan_model(paste0(wd,"stan/skew_t_RE_day15_pedN2.stan"))
+		stanModel_pedN <- cmdstan_model(paste0(wd,"stan/skew_t_RE_day15_pedN_delta.stan"))
 	}else{
 		stan_data_trait <- c(list(y=THBW[,trait]),stan_data_ped)
-		stanModel_pedN <- cmdstan_model(paste0(wd,"stan/skew_t_RE_day15_ME_pedN2.stan"))
+		stanModel_pedN <- cmdstan_model(paste0(wd,"stan/skew_t_RE_day15_ME_pedN_delta.stan"))
 	}
 
 	asreml_mod <- if(trait=="weight_g"){modM}else if(trait=="tarsus_mm"){modT}else if(trait=="headbill_mm"){modHB}else if(trait=="wing_mm"){modW}
@@ -54,12 +54,12 @@ for (trait in c("tarsus_mm","wing_mm")){
 		thin= 24,
 		refresh = 1000,
 		max_treedepth = 12,
-		init=function() makeSV(asreml_mod, stan_data_trait, ME=if(trait=="weight_g"){FALSE}else{TRUE} )
+		init=function() makeSV(asreml_mod, stan_data_trait, ME=trait!="weight_g", delta=TRUE )
 	)
 
 	model_z <- as.mcmc.list(lapply(mod_stan_pedN$output_files(), function(x){
 		x1 <- read.table(x,sep=",", header=TRUE) # using read table gets rid of commented lines
-		x2 <- as.mcmc(x1[c(1:7,grep("beta\\.|gamma|sigma|omega|xi|alpha|^nu",names(x1)))])
+		x2 <- as.mcmc(x1[c(1:7,grep("beta\\.|gamma|sigma|omega|xi|delta|alpha|^nu",names(x1)))])
 		return(x2)
 	}))
 

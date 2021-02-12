@@ -61,9 +61,8 @@ nrow(tMORPH1)
 
 ## exclude weird nests (most found when chicks had already hatched) and those with no egg measurements
 exclude <- nest_to_exclude(tMORPH1,tNEST_SURVEY)
-meanEGGS <- aggregate(egg_weight~nest_orig, tEGGS, function(x) mean(x, na.rm=TRUE))
+meanEGGS <- na.omit(aggregate(egg_weight~nest_orig, tEGGS, function(x) mean(x, na.rm=TRUE)))
 no_egg <- unique(tMORPH1$nest[!tMORPH1$nest%in%meanEGGS$nest_orig])
-
 # exclude[!exclude %in% no_egg]
 # subset(THBW,nest_orig%in%no_egg[!no_egg %in% exclude])
 
@@ -196,6 +195,8 @@ THBW_noRep<- subset(THBW,!duplicated(bird_id))
 ## prune pedigree
 ped <- insertPed(prunePed(orderPed(tPED_use[1:3]), unique(THBW$bird_id), make.base = TRUE))
 names(ped) <- c("animal","dam", "sire")
+
+#apply(THBW,2,function(x) sum(is.na(x)))
 
 #save all the data 
 save(THBW, THBW_noRep, ped, file= paste0(wd,"Data/Intermediate/chick_data.Rdata"))

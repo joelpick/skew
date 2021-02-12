@@ -12,7 +12,7 @@ if(Sys.info()["user"]=="jhadfiel"){
 
 analysis_options <- list()
 
-analysis_options$reduced <- FALSE
+analysis_options$reduced <- TRUE
 # whether full set of covariates are included in trait models
 
 analysis_options$fixed_z <- as.formula("~ malePresent + clutchSizeC + nestHatchDateC  + hatchDay + year + timeC + sex + eggWeightC")
@@ -71,6 +71,15 @@ source(paste0(wd,"R/03_generate_starting_values.R"))
 
 
 ########################################
+## Run dam-sire models
+########################################
+
+#source(paste0(wd,"R/05_animalModel_analysis.R"))
+## Runs dam-sire multi-membership models with skew-t dam/sire, between and within nest effects and normal residuals for models with repeated measures
+## Produces
+
+
+########################################
 ## Run animal models
 ########################################
 
@@ -95,4 +104,10 @@ source(paste0(wd,"R/07_selection_gradients.R"))
 ## Runs
 ## Produces
 
+########################################
+## Run heritability code
+########################################
 
+source(paste0(wd,"R/08_selection_gradients.R"))
+## Runs
+## Produces

@@ -372,7 +372,7 @@ pars <- function(model, par){
 		x <- summary(model)$summary
 		x <- x[grep(par, rownames(x)),c(1,4,8), drop=FALSE]
 	}else if(class(model)=="mcmc.list"){
-		x <- as.data.frame(posterior::summarize_draws(posterior::as_draws_array(model_z),"mean",~quantile(.x, probs = c(0.025, 0.975))))[-(1:7),]
+		x <- as.data.frame(posterior::summarize_draws(posterior::as_draws_array(model),"mean",~quantile(.x, probs = c(0.025, 0.975))))[-(1:7),]
 		rownames(x) <- x$variable
 		x <- x[grep(par, rownames(x)),colnames(x)!="variable"]
   	}else{	
@@ -389,7 +389,7 @@ pars_ST <- function(model, variable){
 	if(class(model)=="stanfit"){
 		x <- summary(model)$summary[paste(c("xi","omega", "alpha", "nu"),variable, sep="_"),c(1,4,8)]
 	}else if(class(model)=="mcmc.list"){
-		x <- as.data.frame(posterior::summarize_draws(posterior::as_draws_array(model_z),"mean",~quantile(.x, probs = c(0.025, 0.975))))[-(1:7),]
+		x <- as.data.frame(posterior::summarize_draws(posterior::as_draws_array(model_z),"mean",~quantile(.x, probs = c(0.025, 0.975))))#[-(1:7),]
 		rownames(x) <- x$variable
 		x <- x[paste(c("xi","omega", "alpha", "nu"),variable, sep="_"),colnames(x)!="variable"]
 	}else{
@@ -416,7 +416,7 @@ factorisePed <- function(pedigree, unknown=0){
 ###############################################
 #  make starting values based on equivalent models in asreml
 ###############################################
-makeSV <- function(asreml_data,stan_data, animal=TRUE, ME=TRUE) {
+makeSV <- function(asreml_data,stan_data, animal=TRUE, ME=TRUE, delta=FALSE) {
 
 	mod <- if(animal){
 		asreml_data$mod_A
@@ -440,11 +440,16 @@ makeSV <- function(asreml_data,stan_data, animal=TRUE, ME=TRUE) {
 		beta_tilde = beta_tilde_starting,
 
 		sigma_nest = sigma_starting[,"nest"],
-		alpha_nest = abs(rnorm(1,0,0.1))*-1,
-		nu_nest = 30,
+		nu_nest = rnorm(1,30,0.1),
 		#log_nu_nest = log(30),
 		nest_effects = rnorm(stan_data$N_nest,0,sigma_starting[,"nest"])
 	)	
+
+	if(delta){
+		SV$delta_nest = rnorm(1,0,0.1)
+	}else{
+		SV$alpha_nest = rnorm(1,0,0.1)
+	}
 
 	if(animal){
 		SV$sigma_A <- sigma_starting[,"animal"]
@@ -453,27 +458,42 @@ makeSV <- function(asreml_data,stan_data, animal=TRUE, ME=TRUE) {
 		SV$A_ParentsNoOffspring <- rnorm(stan_data$N_ParentsNoOffspring,0,1)
 	}else{
 		SV$sigma_dam_sire <- sigma_starting[,"dam"]
-		SV$alpha_dam_sire <- abs(rnorm(1,0,0.1))*-1
 		#SV$log_nu_dam_sire <- log(30)
-		SV$nu_dam_sire = 30
+		SV$nu_dam_sire <- rnorm(1,30,0.1)
 		SV$dam_sire_effects <- rnorm(stan_data$N_dam_sire,0,sigma_starting[,"dam"])
+		if(delta){
+			SV$delta_dam_sire <- rnorm(1,0,0.1)
+		}else{
+			SV$alpha_dam_sire <- rnorm(1,0,0.1)
+		}
 	}
 	
 	if(ME){
 		SV$sigma_ind <- sigma_starting[,"bird_id"]
-		SV$alpha_ind <- abs(rnorm(1,0,0.1))*-1
 		#SV$log_nu_ind <- log(30)
-		SV$nu_ind = 30
+		SV$nu_ind <- rnorm(1,30,0.1)
 		SV$ind_effects <- rnorm(stan_data$N_ind,0,sigma_starting[,"bird_id"])
+		
+		if(delta){
+			SV$delta_ind <- rnorm(1,0,0.1)
+		}else{
+			SV$alpha_ind <- rnorm(1,0,0.1)
+		}
 
 		SV$sigma_E <- sigma_starting[,"units"]
+
+
 	}else{
 		SV$sigma_E <- sigma_starting[,"units"]
-		SV$alpha_E <- abs(rnorm(1,0,0.1))*-1
-		SV#$log_nu_E <- log(30)
-		SV$nu_E = 30
-	}
+		#SV$log_nu_E <- log(30)
+		SV$nu_E <- rnorm(1,30,0.1)
 
+		if(delta){
+			SV$delta_E <- rnorm(1,0,0.1)
+		}else{
+			SV$alpha_E <- rnorm(1,0,0.1)
+		}
+	}
 
 	return(SV)
 }
@@ -850,7 +870,6 @@ rz<-function(n, z_st){
 
 POreg<-function(z_p, g_st, e_st, limit_prob=1e-4){
 
-
   e_llimits<-unlist(lapply(e_st, function(x){qst(limit_prob, dp=x)}))
   e_ulimits<-unlist(lapply(e_st, function(x){qst(1-limit_prob, dp=x)}))
   # lower and upper limits when integrating over environmental effects
@@ -862,13 +881,14 @@ POreg<-function(z_p, g_st, e_st, limit_prob=1e-4){
 }
 
 
-dPOreg<-function(z_p=NULL, g_st=NULL, e_st=NULL, Eg_p=NULL, limit_prob=1e-4){
 
-  ################################################################
-  #  Function for calculating \partial E[g|z] \partial z     
-  #  based on distribution of genetic and environmental effects  
-  #  (passed as parameters of the skew-t)                
-  ################################################################
+################################################################
+#  Function for calculating \partial E[g|z] \partial z     
+#  based on distribution of genetic and environmental effects  
+#  (passed as parameters of the skew-t)                
+################################################################
+
+dPOreg<-function(z_p=NULL, g_st=NULL, e_st=NULL, Eg_p=NULL, limit_prob=1e-4){
 
   e_llimits<-unlist(lapply(e_st, function(x){qst(limit_prob, dp=x)}))
   e_ulimits<-unlist(lapply(e_st, function(x){qst(1-limit_prob, dp=x)}))
@@ -890,14 +910,15 @@ dPOreg<-function(z_p=NULL, g_st=NULL, e_st=NULL, Eg_p=NULL, limit_prob=1e-4){
   return(dEg_p)
 }
 
-cmvnorm<-function(mean=NULL, sigma=NULL, cond=NULL, keep_var, cond_var=NULL){
 
-  #######################################################################################
-  #  Function for calculating the conditional means and (co)variances            
-  #  for the set of variates in keep_var conditional on the set of variates in cond_var 
-  #  cond are the values of the cond_var variates to be conditioned on            
-  #  mean and sigma are the unconditional means and (co)variances              
-  #######################################################################################
+#######################################################################################
+#  Function for calculating the conditional means and (co)variances
+#  for the set of variates in keep_var conditional on the set of variates in cond_var 
+#  cond are the values of the cond_var variates to be conditioned on
+#  mean and sigma are the unconditional means and (co)variances
+#######################################################################################
+
+cmvnorm<-function(mean=NULL, sigma=NULL, cond=NULL, keep_var, cond_var=NULL){
 		
 	cV <- sigma[keep_var,keep_var]-sigma[keep_var, cond_var]%*%solve(sigma[cond_var, cond_var])%*%sigma[cond_var, keep_var]
 
@@ -913,9 +934,9 @@ cmvnorm<-function(mean=NULL, sigma=NULL, cond=NULL, keep_var, cond_var=NULL){
 
 ############################################################################
 # Fitness as a function of z for a probit two-event history analysis where 
-## beta and gamma are vectors for the linear and quardatic coefficient for the two events
+## beta and gamma are vectors for the linear and quadratic coefficient for the two events
 ## mu_etaz and V_etaz are the means and covariances of the linear predictors (excluding z) for the two events followed by z
-## V_nest is the between nest covariance matrix and the error structure is assumed to be diag(2_
+## V_nest is the between nest covariance matrix and the error structure is assumed to be diag(2)
 ############################################################################
 
 w_func<-function(z, mu_etaz, V_etaz, beta, gamma,  V_nest){
@@ -927,15 +948,14 @@ w_func<-function(z, mu_etaz, V_etaz, beta, gamma,  V_nest){
 	return(pmvnorm(lower=c(0,0), mean=c(g_s), sigma=V_s))
 }
 
-wD_func<-function(z, mu_etaz, V_etaz, beta, gamma,  V_nest){
 
 #################################################################################################
-#      Derivative of fitness with respect to z for a probit two-event history analysis      #
-#  where beta and gamma are vectors for the linear and quardatic coefficient for the two events #
-#                  mu_etaz and V_etaz are the means and covariances                             #
-#         of the linear predictors (excluding z) for the two events followed by z               #
-# V_nest is the between nest covrainace matrix and the error structure is assumed to be diag(2) #
+# Derivative of fitness with respect to z for a probit two-event history analysis 
+#  where beta and gamma are vectors for the linear and quardatic coefficient for the two events 
+# mu_etaz and V_etaz are the means and covariances of the linear predictors (excluding z) for the two events followed by z
+# V_nest is the between nest covrainace matrix and the error structure is assumed to be diag(2) 
 #################################################################################################
+wD_func<-function(z, mu_etaz, V_etaz, beta, gamma,  V_nest){
 
 	c_s <- cmvnorm(mean=mu_etaz, sigma=V_etaz, cond=c(NA,NA, z), keep_var=1:2, cond_var=3)
 	g_s<-c_s$cM+beta*z+gamma*z^2
@@ -956,9 +976,9 @@ wD_func<-function(z, mu_etaz, V_etaz, beta, gamma,  V_nest){
 post_mu<-function(model, components=NULL, X=NULL, pred_pos=NULL, standardise=FALSE){
 
   ################################################################################################
-  #          Posterior distribution of mean and 2nd-4th central moments from a stan fit          #
-  # for the sum of effects listed in components	and the linear predictor defined by X[,pred_pos] #  
-  #                 component terms are assumed to be either Gaussain or Skew-t	                 #
+  # Posterior distribution of mean and 2nd-4th central moments from a stan fit
+  # for the sum of effects listed in components	and the linear predictor defined by X[,pred_pos] 
+  # component terms are assumed to be either Gaussain or Skew-t
   ################################################################################################
 
     post<-as.data.frame(extract(model))
