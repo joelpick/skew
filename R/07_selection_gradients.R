@@ -29,7 +29,7 @@ ncores <- 8
 n_it <- 1000
 nplot_points<- 100
 re_run <- FALSE
-save_plot <- TRUE
+save_plot <- FALSE
 
 
 # trait<-"headbill_mm"
@@ -56,7 +56,7 @@ n_comb<-nlevels(THBW_noRep$category)
 if(re_run){
 	for (trait in c("tarsus_mm","headbill_mm","wing_mm","weight_g")){	
 
-
+#trait <- "tarsus_mm"
 		load(paste0(data_wd,"day15_survival_model_",trait,".Rdata"))
 		# read in fitness models (model_w)
 
@@ -229,7 +229,10 @@ for(i in 1:length(trait)){
 
 if(save_plot) dev.off()
 
+# 	load(paste0(data_wd,"selection_gradients_",trait,".Rdata"))
+# summary(model_w)
 
+# sum(rowMeans(dmin) >0 & rowMeans(dmax) <0)/nrow(dmax)
 
 
 

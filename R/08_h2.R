@@ -4,7 +4,7 @@ options(width=Sys.getenv("COLUMNS"), stringsAsFactors=FALSE)
 
 # library(MCMCglmm)
 # library(MASS)
-# library(mvtnorm)
+library(mvtnorm)
 library(sn)
 #library(rstan)
 library(cmdstanr)
@@ -177,4 +177,7 @@ if(re_run_h2){
 	}
 }
 
+
+# load(paste0(data_wd,"h2_tarsus_mm.Rdata"))
+# h2a
 	

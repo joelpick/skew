@@ -418,11 +418,12 @@ factorisePed <- function(pedigree, unknown=0){
 ###############################################
 makeSV <- function(asreml_data,stan_data, animal=TRUE, ME=TRUE, delta=FALSE) {
 
-	mod <- if(animal){
-		asreml_data$mod_A
-	}else{
-		asreml_data$mod_DS
-	}
+	mod <- asreml_data$mod_A
+	# mod <- if(animal){
+	# 	asreml_data$mod_A
+	# }else{
+	# 	asreml_data$mod_DS
+	# }
 
 	sigma_vars <- colnames(mod$Vi)
 	sigma_starting <- sqrt(rmvnorm(n = 1,
@@ -457,10 +458,16 @@ makeSV <- function(asreml_data,stan_data, animal=TRUE, ME=TRUE, delta=FALSE) {
 		SV$A_ParentsOffspring <- rnorm(stan_data$N_ParentsOffspring,0,1)
 		SV$A_ParentsNoOffspring <- rnorm(stan_data$N_ParentsNoOffspring,0,1)
 	}else{
-		SV$sigma_dam_sire <- sigma_starting[,"dam"]
-		#SV$log_nu_dam_sire <- log(30)
+	# Va <- pin(mod, V_a~sire*4)
+	# Ve <- pin(mod, V_e~R-sire*2)
+	# Vo <- pin(mod, V_origin~dam-sire)
+	# Vr <- pin(mod, V_rear~nest)
+		# SV$sigma_dam_sire <- sigma_starting[,"dam"]
+		SV$sigma_dam_sire <- sigma_starting[,"animal"]/4
+		
 		SV$nu_dam_sire <- rnorm(1,30,0.1)
-		SV$dam_sire_effects <- rnorm(stan_data$N_dam_sire,0,sigma_starting[,"dam"])
+		# SV$dam_sire_effects <- rnorm(stan_data$N_dam_sire,0,sigma_starting[,"dam"])
+		SV$dam_sire_effects <- rnorm(stan_data$N_dam_sire,0,sigma_starting[,"animal"]/4)
 		if(delta){
 			SV$delta_dam_sire <- rnorm(1,0,0.1)
 		}else{
@@ -469,11 +476,15 @@ makeSV <- function(asreml_data,stan_data, animal=TRUE, ME=TRUE, delta=FALSE) {
 	}
 	
 	if(ME){
-		SV$sigma_ind <- sigma_starting[,"bird_id"]
+		if(animal){
+			SV$sigma_ind <- sigma_starting[,"bird_id"]
+		}else{
+			SV$sigma_ind <- sigma_starting[,"bird_id"] + sigma_starting[,"animal"]/2
+		}	
 		#SV$log_nu_ind <- log(30)
 		SV$nu_ind <- rnorm(1,30,0.1)
-		SV$ind_effects <- rnorm(stan_data$N_ind,0,sigma_starting[,"bird_id"])
-		
+		SV$ind_effects <- rnorm(stan_data$N_ind,0,SV$sigma_ind)
+		 
 		if(delta){
 			SV$delta_ind <- rnorm(1,0,0.1)
 		}else{
@@ -484,7 +495,11 @@ makeSV <- function(asreml_data,stan_data, animal=TRUE, ME=TRUE, delta=FALSE) {
 
 
 	}else{
-		SV$sigma_E <- sigma_starting[,"units"]
+		if(animal){
+			SV$sigma_E <- sigma_starting[,"units"]
+		}else{
+			SV$sigma_E <- sigma_starting[,"units"] + sigma_starting[,"animal"]/2
+		}	
 		#SV$log_nu_E <- log(30)
 		SV$nu_E <- rnorm(1,30,0.1)
 

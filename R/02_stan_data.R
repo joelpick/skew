@@ -153,5 +153,63 @@ for(reduced in c(TRUE,FALSE)){
 	#######-----------------------------------
 
 
-	save(stan_data_DS,stan_data_DS_noRep, stan_data_ped, stan_data_ped_noRep, file= paste0(wd,"Data/Intermediate/stan_data",if(reduced)"_reduced",".Rdata"))
+
+
+	NoParentsOffspring <- which(stan_ped[,2]==0 & stan_ped[,3]==0 & stan_ped[,1] %in% c(stan_ped[,2],stan_ped[,3]))
+
+	ParentsOffspring <- which( (stan_ped[,2]!=0 | stan_ped[,3]!=0) & stan_ped[,1] %in% c(stan_ped[,2],stan_ped[,3]))# & !stan_ped[,1] %in% NoParents
+	#any(ParentsOffspring %in% NoParentsOffspring)
+
+	NoParentsNoOffspring <- which(stan_ped[,2]==0 & stan_ped[,3]==0 & !stan_ped[,1] %in% c(stan_ped[,2],stan_ped[,3]))
+
+	#any(NoParentsNoOffspring  %in% c(ParentsOffspring, NoParentsOffspring))
+	ParentsNoOffspring <- which((stan_ped[,2]!=0 | stan_ped[,3]!=0) & !stan_ped[,1] %in% c(stan_ped[,2],stan_ped[,3]))
+
+
+	stan_data_ped_reduced <- list( 
+		N=nrow(THBW),
+		J=ncol(X), 
+		X=X,
+		N_nest=length(unique(THBW$nest)),
+		nest_id=as.numeric(as.factor(THBW$nest)), 
+		N_ind=length(unique(THBW$bird_id)),
+		ind_id=as.numeric(as.factor(THBW$bird_id)), 
+		N_ped = nrow(stan_ped), 
+		animal_id =animal_id, 
+		dam = stan_ped$dam,
+		sire = stan_ped$sire,
+		MSV=MSV, 
+		N_NoParentsOffspring=length(NoParentsOffspring), 
+		N_ParentsOffspring=length(ParentsOffspring), 
+		N_NoOffspring=length(c(NoParentsNoOffspring,ParentsNoOffspring)), 
+		NoParentsOffspring=NoParentsOffspring, 
+		ParentsOffspring=ParentsOffspring,
+		NoOffspring=c(NoParentsNoOffspring,ParentsNoOffspring)
+	)
+
+
+	stan_data_ped_reduced_noRep <- list(
+		N=nrow(THBW_noRep),
+		y=THBW_noRep$weight_g,
+		J=ncol(X_noRep ), 
+		X=X_noRep ,
+		N_nest=length(unique(THBW_noRep$nest)),
+		nest_id=as.numeric(as.factor(THBW_noRep$nest)), 
+		N_ind=length(unique(THBW_noRep$bird_id)),
+		ind_id=as.numeric(as.factor(THBW_noRep$bird_id)), 
+		N_ped = nrow(stan_ped), 
+		animal_id =animal_id_noRep, 
+		dam = stan_ped$dam,
+		sire = stan_ped$sire,
+		MSV=MSV, 
+		N_NoParentsOffspring=length(NoParentsOffspring), 
+		N_ParentsOffspring=length(ParentsOffspring), 
+		N_NoOffspring=length(c(NoParentsNoOffspring,ParentsNoOffspring)), 
+		NoParentsOffspring=NoParentsOffspring, 
+		ParentsOffspring=ParentsOffspring,
+		NoOffspring=c(NoParentsNoOffspring,ParentsNoOffspring)
+	)
+
+
+	save(stan_data_DS,stan_data_DS_noRep, stan_data_ped, stan_data_ped_noRep,stan_data_ped_reduced,stan_data_ped_reduced_noRep, file= paste0(wd,"Data/Intermediate/stan_data",if(reduced)"_reduced",".Rdata"))
 }
