@@ -1,6 +1,6 @@
 rm(list=ls())
 
-options(width=Sys.getenv("COLUMNS"), stringsAsFactors=FALSE)
+options(stringsAsFactors=FALSE)
 
 library(sn)
 library(parallel)
@@ -71,7 +71,7 @@ hetVarSim <- function(y,x,stanModel_skew_t,stanModel_skew,stanModel_t){
 
 
 
-	nest_means <- aggregate(wing_mm~male_present+nest,THBW_egg,mean)
+	nest_means <- aggregate(wing_mm~male_present+nest,THBW,mean)
 
 	sds <- with(nest_means,tapply(wing_mm,male_present,sd))
 	means <- with(nest_means,tapply(wing_mm,male_present,mean))
@@ -203,12 +203,12 @@ outMeans<- abind(apply(out1,c(1,2),mean)[c(1,3,5,7,9),1:3],
 	apply(out5,c(1,2),mean)[c(1,3,5,7,9),1:3],
 	apply(out6,c(1,2),mean)[c(1,3,5,7,9),1:3],
 	along=3)[orderMeans,,]
-outSD<- abind(apply(out1,c(1,2),sd)[c(1,3,5,7,9),1:3],
-	apply(out2,c(1,2),sd)[c(1,3,5,7,9),1:3],
-	apply(out3,c(1,2),sd)[c(1,3,5,7,9),1:3],
-	apply(out4,c(1,2),sd)[c(1,3,5,7,9),1:3],
-	apply(out5,c(1,2),sd)[c(1,3,5,7,9),1:3],
-	apply(out6,c(1,2),sd)[c(1,3,5,7,9),1:3],
+outSE<- abind(apply(out1,c(1,2),se)[c(1,3,5,7,9),1:3],
+	apply(out2,c(1,2),se)[c(1,3,5,7,9),1:3],
+	apply(out3,c(1,2),se)[c(1,3,5,7,9),1:3],
+	apply(out4,c(1,2),se)[c(1,3,5,7,9),1:3],
+	apply(out5,c(1,2),se)[c(1,3,5,7,9),1:3],
+	apply(out6,c(1,2),se)[c(1,3,5,7,9),1:3],
 	along=3)[orderMeans,,]
 
 
@@ -228,12 +228,12 @@ outMeansSE<- abind(apply(out1,c(1,2),mean)[c(2,4,6,8,10),1:3],
 	apply(out5,c(1,2),mean)[c(2,4,6,8,10),1:3],
 	apply(out6,c(1,2),mean)[c(2,4,6,8,10),1:3],
 	along=3)[orderMeans,,]
-outSDSE<- abind(apply(out1,c(1,2),sd)[c(2,4,6,8,10),1:3],
-	apply(out2,c(1,2),sd)[c(2,4,6,8,10),1:3],
-	apply(out3,c(1,2),sd)[c(2,4,6,8,10),1:3],
-	apply(out4,c(1,2),sd)[c(2,4,6,8,10),1:3],
-	apply(out5,c(1,2),sd)[c(2,4,6,8,10),1:3],
-	apply(out6,c(1,2),sd)[c(2,4,6,8,10),1:3],
+outSESE<- abind(apply(out1,c(1,2),se)[c(2,4,6,8,10),1:3],
+	apply(out2,c(1,2),se)[c(2,4,6,8,10),1:3],
+	apply(out3,c(1,2),se)[c(2,4,6,8,10),1:3],
+	apply(out4,c(1,2),se)[c(2,4,6,8,10),1:3],
+	apply(out5,c(1,2),se)[c(2,4,6,8,10),1:3],
+	apply(out6,c(1,2),se)[c(2,4,6,8,10),1:3],
 	along=3)[orderMeans,,]
 
 x<-array(1:90,dim=c(5,3,6)) + array(rep(0:5,each=15),dim=c(5,3,6))
@@ -265,7 +265,7 @@ bias_fun2 <- function(output, FUN){
 
 orderBias <-c(1,4,3,2)
 outBias <- abs(abind(bias_fun2(out1,mean),bias_fun2(out2,mean),bias_fun2(out3,mean),bias_fun2(out4,mean),bias_fun2(out5,mean),bias_fun2(out6,mean),along=3))[orderBias,,]
-outBiasSD <- abind(bias_fun2(out1,sd),bias_fun2(out2,sd),bias_fun2(out3,sd),bias_fun2(out4,sd),bias_fun2(out5,sd),bias_fun2(out6,sd),along=3)[orderBias,,]
+outBiasSE <- abind(bias_fun2(out1,se),bias_fun2(out2,se),bias_fun2(out3,se),bias_fun2(out4,se),bias_fun2(out5,se),bias_fun2(out6,se),along=3)[orderBias,,]
 xBias<-array(1:72,dim=c(4,2,6)) + array(rep(0:5,each=8),dim=c(4,2,6))
 
 # outBias <- abs(abind(bias_fun(out1,mean),bias_fun(out2,mean),bias_fun(out3,mean),bias_fun(out4,mean),bias_fun(out5,mean),bias_fun(out6,mean),along=3))[orderBias,,]
@@ -288,7 +288,7 @@ text(c(4.5+c(0:5)*9),0,c(1:6),cex=2)
 
 par(mar=c(5,5,1,1),cex.lab=1.5)
 plot(x,outMeans,xaxt="n",ylab="Estimate",xlab="", ylim=c(32,50), pch=21:25, cex=1.5, bg=1:5)
-arrows(x,outMeans+outSD,x,outMeans-outSD,angle=90,code=3, length=0.01)
+arrows(x,outMeans+outSE,x,outMeans-outSE,angle=90,code=3, length=0.01)
 abline(v=15*(1:5)+(1:5))
 abline(v=c(5.5+c(0:5)*16,10.5+c(0:5)*16),col="grey")
 axis(1,x,rep(c("obs","lm","ST","SN","T")[orderMeans],18),las=2)
@@ -305,7 +305,7 @@ for(i in 1:3){
 
 
 plot(x,outMeansSE,xaxt="n",ylab="SE",xlab="", ylim=c(0,2.5), pch=21:25, cex=1.5, bg=1:5)
-arrows(x,outMeansSE+outSDSE,x,outMeansSE-outSDSE,angle=90,code=3, length=0.01)
+arrows(x,outMeansSE+outSESE,x,outMeansSE-outSESE,angle=90,code=3, length=0.01)
 abline(v=15*(1:5)+(1:5))
 abline(v=c(5.5+c(0:5)*16,10.5+c(0:5)*16),col="grey")
 axis(1,x,rep(c("obs","lm","ST","SN","T")[orderMeans],18),las=2)
@@ -318,7 +318,7 @@ text(-1,2.25,"B)",cex=2)
 
 plot(xBias,outBias,xaxt="n",xlab="", ylim=c(-1,6), pch=22:25, bg=2:5, cex=1.5, ylab="% Absolute Bias in Contrasts")
 abline(h=0)
-arrows(xBias,outBias+outBiasSD,xBias,outBias-outBiasSD,angle=90,code=3, length=0.01)
+arrows(xBias,outBias+outBiasSE,xBias,outBias-outBiasSE,angle=90,code=3, length=0.01)
 abline(v=8*(1:5)+(1:5))
 abline(v=c(4.5+c(0:5)*9),col="grey")
 axis(1,xBias,rep(c("lm","ST","SN","T")[orderBias],12),las=2)

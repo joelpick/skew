@@ -58,10 +58,23 @@ groupFunc_vectorC <- function(dat, var, FUN) {
 #################################################
 n_unique <- function(x) length(unique(x))
 
+
+#################################################
+#  Makes pMCMC from vector  
+#################################################
+pMCMC <- function(x) 2*pmax(0.5/length(x), pmin(sum(x > 0)/length(x), 1 - sum(x > 0)/length(x)))
+
+
 #################################################
 #  Makes vector of Mean and 95% CI from vector  
 #################################################
-mean_CI <- function(x) c(mean(x),quantile(x, c(0.025,0.975)))
+mean_CI <- function(x,pMCMC=FALSE) {
+	y <-c(mean(x),quantile(x, c(0.025,0.975)))
+	if(pMCMC) y <- c(y,pMCMC=pMCMC(x))
+	return(y)
+}
+
+
 
 #################################################
 #  SE of vector 								  
@@ -606,7 +619,7 @@ pin<-function (object, transform) {
 #   Makes a forest plot.                        #
 #   Takes matrix of mean, 0.025 and 0.975 	  #
 #################################################
-effectPlot <- function(x, y=NULL,add=FALSE,offset=NULL, fixed=NULL, xlab="", ylab= "", xlim=NULL,yaxis=2, col="black", cex.axis=1,pch=19,names=NULL,...){ 
+effectPlot <- function(x, y=NULL,add=FALSE,offset=NULL, fixed=NULL, xlab="", ylab= "", xlim=NULL, ylim=NULL,yaxis=2, col="black", cex.axis=1, cex.axis.scale=1.5,pch=19,names=NULL,bg="white",arrow.length=0.01,...){ 
 
 	if(is.null(y)) y <- nrow(x):1
 	y_offset <- if(is.null(offset)){ y }else{ y + offset }
@@ -614,14 +627,18 @@ effectPlot <- function(x, y=NULL,add=FALSE,offset=NULL, fixed=NULL, xlab="", yla
 		xlim<- if(min(x)>0 & max(x)>0) {c(0,max(x))
 		}else if(min(x)<0&max(x)<0) {c(min(x),0)
 		}else{	range(x)}}
+	if(is.null(ylim)){ ylim <- c(0.5,nrow(x)+0.5)}
 	if(is.null(names)) names <- rownames(x)
 	if(!add){	
-		plot(x[,1], y, xlab=xlab, ylab=ylab, xlim=xlim, col=0, yaxt="n", ylim=c(0.5,nrow(x)+0.5), cex.axis=cex.axis,...)#c(min(y)-0.5,max(x)+0.5)
-		axis(yaxis,y,names,cex.axis=cex.axis*1.5, las=1)
+		plot(x[,1], y, xlab=xlab, ylab=ylab, xlim=xlim, col=0, yaxt="n", ylim=ylim, cex.axis=cex.axis,...)#c(min(y)-0.5,max(x)+0.5)
+		axis(yaxis,y,names,cex.axis=cex.axis*cex.axis.scale, las=1)
 		abline(v=0, col="grey")
 	}
-	points(x[,1], y_offset, pch=pch, col=col, cex=1.5)
-	arrows(x[,2], y_offset, x[,3], y_offset, code=3, angle=180, length=0.01,col=col, lwd=1.5)
+	arrow_plot <- x[,1]!=x[,2] | x[,1]!=x[,3]
+	if(length(col)==1) col <- rep(col,nrow(x))
+	arrows(x[arrow_plot,2], y_offset[arrow_plot], x[arrow_plot,3], y_offset[arrow_plot], code=3, angle=270, length=arrow.length,col=col[arrow_plot], lwd=1.5)
+	points(x[,1], y_offset, pch=pch, col=col, bg=bg, cex=1.5)
+
 	if(!is.null(fixed)){
 		points(x[fixed,1], y_offset[fixed], col="red", cex=1.75)
 
@@ -640,10 +657,11 @@ blankPlot <- function(ylim=c(-1,1),xlim=c(-1,1)) {
 #################################################
 ## function to make a blank plot
 #################################################
-binPlot <- function(formula,data=NULL,text=TRUE,text.cex=1,...){
+binPlot <- function(formula,data=NULL,text=TRUE,text.cex=1,point.scale=TRUE,pt.cex=0.1,...){
 	bindedMeans<- aggregate(formula,data,mean)
 	bindedCounts<- aggregate(formula,data,length)
-	plot(formula,bindedMeans, pch=19,...)
+	if(point.scale) pt.cex=pt.cex*sqrt(bindedCounts)
+	plot(formula,bindedMeans, pch=19,cex=pt.cex,...)
 	if(text) text(formula,bindedMeans, bindedCounts[,2], pos=3,cex=text.cex)
 }
 
@@ -655,6 +673,22 @@ binPoints <- function(formula,data,text.cex=1,...){
 	bindedCounts<- aggregate(formula,data,length)
 	points(formula,bindedMeans, pch=19,...)
 	text(formula,bindedMeans, bindedCounts[,2], pos=3,cex=text.cex)
+}
+surv_plot <- function(trait, surivial, mod_pred, coefs, xlab="", ylab="Recruitment probability", ylim=c(0,0.2), text=FALSE, col=1, scale=0.25){
+	trait_d <- density(trait , adjust=2.5)
+	trait_d$y <- trait_d$y * scale
+	traitCat <- bin(trait,n=10)
+	binPlot(surivial~traitCat, xlab=xlab, ylab=ylab, ylim=ylim, xlim=range(trait),text.cex=0.7, text=text, col=col)
+	abline(h=0, v=mean(trait), col="grey")
+	polygon(trait_d$x,trait_d$y, col=alpha(col,0.3),border=NA)
+	lines(y ~ I(z),mod_pred, col=col)
+	lines(y_u ~ I(z),mod_pred, col=col, lty=3)
+	lines(y_l ~ I(z),mod_pred, col=col, lty=3)
+
+	text_x <- min(trait) + diff(range(trait))*c(0.05,0.15,0.25,0.35)
+	text(text_x, 0.175, c("F-L","F-Q","R-L","R-Q"))
+	text(text_x, 0.15, p_star(coefs[,4]))
+
 }
 
 
@@ -684,7 +718,7 @@ extract_w <- function(model_w, trait, fixedEffects, data){
 	eta2_pos<-setdiff(eta2_pos, c(beta_pos, gamma_pos))
 	# positions of non-trait terms in the survival model that pertain to fledging to recruitment. 
 
-	X_eta<-model.matrix(fixedEffects, THBW_noRep)
+	X_eta<-model.matrix(fixedEffects, data)
 	# design matrix for non-trait effects in survival model
 
 
@@ -708,6 +742,37 @@ extract_w <- function(model_w, trait, fixedEffects, data){
 
 
 
+extract_w2 <- function(model_wpost, trait, fixedEffects, data){
+
+	X_eta<-model.matrix(fixedEffects, data)
+	# design matrix for non-trait effects in survival model
+	
+	if(trait!="weight_g"){
+		beta_pos<-grep("beta_x1_hat\\.", colnames(model_wpost))
+		# linear coefficients for trait values from the survival model
+
+		gamma_pos<-grep("beta_x1_hat2\\.", colnames(model_wpost))
+		# quadratic coefficients for trait values from the survival model
+	}else{
+		beta_pos<-grep("beta\\.", colnames(model_wpost))[(2*ncol(X_eta))+c(1,2)]
+		# linear coefficients for trait values from the survival model
+
+		gamma_pos<-grep("beta\\.", colnames(model_wpost))[(2*ncol(X_eta))+c(3,4)]
+		# quadratic coefficients for trait values from the survival model
+	}
+
+	beta_all <- model_wpost[,beta_pos]
+	gamma_all <- model_wpost[,gamma_pos]
+
+
+	eta1_all<-apply(model_wpost[,grep("beta\\.", colnames(model_wpost))[1:ncol(X_eta)]], 1, function(x) X_eta%*%x)
+	eta2_all<-apply(model_wpost[,grep("beta\\.", colnames(model_wpost))[(1:ncol(X_eta))+ncol(X_eta)]], 1, function(x) X_eta%*%x)
+    # non-trait fixed effects predictions from survival model
+
+    V_nest_all <- model_wpost[,grep("Sigma_nest", colnames(model_wpost))]
+
+	list(beta_all=beta_all, gamma_all=gamma_all, eta1_all=eta1_all, eta2_all=eta2_all, V_nest_all=V_nest_all)
+}
 
 
 
@@ -1085,3 +1150,48 @@ h2<-function(n, g_st=NULL, e_st=NULL, adj_mean=NULL, mu_etaz=NULL, V_etaz=NULL, 
 
 }
 
+
+
+PCI<-function(x, CT="mean", digits=3, p=FALSE,p2=FALSE,v=TRUE, units="", p_adj=0){
+
+if(!is.mcmc(x)){
+    x<-as.mcmc(x)
+}
+if(v){
+  if(CT=="mode"){
+     point.est<-posterior.mode(x)
+   }
+  if(CT=="mean"){
+     point.est<-mean(x)
+   }
+   interval<-round(as.numeric(coda::HPDinterval(x)), digits)
+  if(p|p2){
+    pval<-2*pmax(0.5/length(x), pmin(sum(x+p_adj > 0)/length(x), 1 - sum(x+p_adj > 0)/length(x)))
+    if(pval<0.001){
+       pval<-paste("$<$", 0.001, sep="")
+    }else{
+      pval<-paste("=", formatC(pval, digits=digits,format="f"), sep="")
+    }
+  }
+  output<-paste(formatC(point.est,digits=digits, format="f"), " ", units, "[", formatC(interval[1],digits=digits,format="f"), ", ", formatC(interval[2], digits=digits,format="f"), "]", sep="")
+  if(p){
+    output<-paste(output, ", pMCMC",  formatC(pval, digits=digits,format="f"), sep="")
+  }else if(p2){
+    output<-paste(formatC(point.est,digits=digits, format="f"), " ", units, " ([", formatC(interval[1],digits=digits,format="f"), ", ", formatC(interval[2], digits=digits,format="f"),"]", "," ,"  pMCMC",formatC(pval, digits=digits,format="f"), ")", sep="")
+  }
+
+}else{
+  if(p){
+
+  pval<-2*pmax(0.5/length(x), pmin(sum(x+p_adj > 0)/length(x), 1 - sum(x+p_adj > 0)/length(x)))
+  if(pval<0.001){
+    pval<-paste("$<$",0.001, sep="")
+  }else{
+    pval<-paste("=", formatC(pval, digits=digits,format="f"), sep="")
+  }
+
+    output<-paste("pMCMC",  formatC(pval, digits=digits,format="f"), sep="")
+  }
+}
+  output
+}

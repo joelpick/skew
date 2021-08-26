@@ -1,22 +1,19 @@
 
 # source("~/Work/Skew/R/selection_gradients_skew_jarrod.R")
 
-## for running remotely
-if(!exists("remote_run")){
-	rm(list=ls())
+rm(list=ls())
 
-	n_sims <- 2000
-	ncores <- 8
-	rerun <- FALSE
-	plot <- TRUE
-	normal <- TRUE
-	xfoster <- TRUE
-	x_recip <- TRUE # reciprocal or round robin xfostering
-	trait<-"tarsus_mm"#"weight_g"
+n_sims <- 2000
+ncores <- 8
+rerun <- FALSE
+plot <- TRUE
+save_plot <- TRUE
+normal <- TRUE
+xfoster <- TRUE
+x_recip <- TRUE # reciprocal or round robin xfostering
+trait<-"weight_g"
 
-}
-
-options(width=Sys.getenv("COLUMNS"), stringsAsFactors=FALSE)
+options(stringsAsFactors=FALSE)
 
 library(parallel)
 library(asreml)
@@ -33,35 +30,37 @@ if(Sys.info()["user"]=="jhadfiel"){
 }else{
 	wd <- "~/Dropbox/0_blue_tits/skew/"
 }
+data_wd <- paste0(wd,"Data/Intermediate/")
 
 source(paste0(wd,"R/00_functions.R"))
 
-#posterior_mean<-TRUE
-cond_term<-c("year", "sex") # terms to condition on 
-cont_term<-c("timeC")   	# terms to control for
+load(paste0(data_wd,"analysis_options.Rdata"))
+
+reduced <- analysis_options$reduced
+cond_term<-analysis_options$cond_term  # terms to condition on 
+cont_term<-analysis_options$cont_term  # terms to control for 
+fixed_w <- analysis_options$fixed_w
 
 ############################
 ## load in data
 ############################
 
-load(paste0(wd,"Data/Intermediate/day15_survival_models_bv.Rdata"))
-# survival models (including 2010 when eggs weren't weight) and THBW is the data
+load(paste0(data_wd,"chick_data.Rdata"))
 
-load(paste0(wd,"Data/Intermediate/stan_dam_data.Rdata"))
+load(paste0(data_wd,"stan_data",if(reduced)"_reduced",".Rdata"))
 # stan_data_weight$X is the design matrix and THBW_egg_noRep the data
 # excluding years in which eggs weren't measured and repeat measures
 
-load(paste0(wd,"Data/Intermediate/stan_summary_data.Rdata"))
+model_files <- list.files(data_wd)[grep(paste0("stanMod_pedN_",if(reduced)"reduced_",trait),list.files(data_wd))]
+load(paste0(data_wd,model_files[length(model_files)]))
+model_zpost<-do.call(rbind,model_z)[,-(1:7)]
 
-if(trait=="weight_g"){
- model_w<-mod_weight_bv
- model_z<-get(load(paste0(wd,"Data/Intermediate/stanModWeightPedN20191220_0905.Rdata")))
-}
-if(trait=="tarsus_mm"){
- model_w<-mod_tarsus_bv
- model_z<-get(load(paste0(wd,"Data/Intermediate/stanModTarsus_pedN20191217_1716.Rdata")))
-}
-rm("mod_weight_bv", "mod_tarsus_bv")
+
+model_files <- list.files(data_wd)[grep(paste0("day15_survival_ME_",trait),list.files(data_wd))]
+load(paste0(data_wd,model_files[length(model_files)]))
+model_wpost<-do.call(rbind,model_w)[,-(1:7)]
+
+# rm("model_z", "model_w")
 
 
 
@@ -69,67 +68,18 @@ rm("mod_weight_bv", "mod_tarsus_bv")
 ## simulation parameters
 ############################
 
-mu_pred<-stan_data_weight$X %*% pars(model_z,"beta")[,1]
+### from trait model
 
-if(rerun){
+	X<-stan_data_ped_noRep$X
 
-e_st <- if(normal){
-	list(
-		n_st= c(0, sqrt(dp2cm(pars_ST(model_z,"nest")[,1],family="ST")[2]), 0, 1e+16),
-		e_st= c(0, sqrt(dp2cm(pars_ST(model_z,if(trait=="weight_g"){"E"}else{"ind"} )[,1],family="ST")[2]), 0, 1e+16), 
-		fixed_st = c(mean(mu_pred), sd(mu_pred), 0, 1e+16)
-		)
-}else{
-	list(
-		n_st= pars_ST(model_z,"nest")[,1],
-		e_st=pars_ST(model_z,if(trait=="weight_g"){"E"}else{"ind"} )[,1], 
-		fixed_st=doppelgangR::st.mle(y = mu_pred)$dp
-	)
-}
-
-g_st<-c(0, pars(model_z,"sigma_A")[1], 0, 1e+16)
-
-beta_pos<-grep(paste0(trait, "C:|", trait, "C$"), colnames(model_w$Sol))
-# linear coefficients for trait values from the survival model
-
-gamma_pos<-grep(paste0(trait, "C2:|", trait, "C2$"), colnames(model_w$Sol))
-# quadratic coefficients for trait values from the survival model
-
-eta1_pos<-grep("at\\.level\\(age,\\ 1\\)", colnames(model_w$Sol))
-eta1_pos<-setdiff(eta1_pos, c(beta_pos, gamma_pos))
-# positions of non-trait terms in the survival model that pertain to Day15 to fledging. 
-
-eta2_pos<-grep("at\\.level\\(age,\\ 2\\)", colnames(model_w$Sol))
-eta2_pos<-setdiff(eta2_pos, c(beta_pos, gamma_pos))
-# positions of non-trait terms in the survival model that pertain to fledging to recruitment. 
-
-fixedEffects <- formula(~ sex + male_present + year + hatch_day + clutch_sizeC + nest_hatch_dateC)
-# single trait version of the fixed effect formula used in the survival model
-
-X_eta1<-model.matrix(fixedEffects, THBW)
-X_eta2<-model.matrix(fixedEffects, THBW)
-# design matrix for non-trait effects in survival model
-
-eta1 <- X_eta1%*%colMeans(model_w$Sol[,eta1_pos])
-eta2 <- X_eta2%*%colMeans(model_w$Sol[,eta2_pos])
-# non-trait fixed effects predictions from survival model
-
-beta<-colMeans(model_w$Sol[,beta_pos])
-gamma<-colMeans(model_w$Sol[,gamma_pos])
-# trait coefficients from survival model
-
-V_nest<-matrix(colMeans(model_w$VCV[,grep("nest", colnames(model_w$VCV))]), 2,2)
-
-mu_etaz<-c(mean(eta1), mean(eta2), mean(THBW[,paste0(trait, "C")])) 
-V_etaz<-cov(cbind(eta1, eta2, THBW[,paste0(trait, "C")]))
-# mean and covariance matrices of linear predictor and traits
-mu<-attr(THBW[,paste0(trait, "C")], "scaled:center")
-
-
-
-############################
-## simulation
-############################
+	model_zbeta<-pars(model_z, "beta")[,1]
+	pred_pos <- which(!grepl((paste(c(cond_term,cont_term),collapse="|")),colnames(X)))
+	mu_pred <- X[,pred_pos,drop=FALSE]%*%model_zbeta[pred_pos]
+	
+	fixed_st <- st.mple(y = mu_pred)$dp
+	nest_st <- pars_ST(model_z, "nest")[,1]
+	resid_st <- pars_ST(model_z, if(trait=="weight_g"){"E"}else{"ind"})[,1]
+	g_st<-c(0, pars(model_z,"sigma_A")[1,1], 0, 1e+16)
 
 
 nf<-1000
@@ -138,149 +88,266 @@ ng<-3
 
 ni<-nf*no	
 
-## nurse id - depends on cross fostering
-nurse_id <- 
-	if(xfoster){ 
-		if(x_recip){
-			rep(as.vector(rbind(1:nf,(nf:1))),each=no/2) ## reciprocal xfoster
-		}else{
-			rep(1:nf, each=no)[c((no/2+1):(ni),1:(no/2))] ## round robin xfoster
-		}
+
+
+
+if(rerun){
+
+
+	model_w_out<- extract_w2(model_wpost, trait, fixedEffects=formula(paste("~", fixed_w)), data=THBW_noRep)
+	attach(model_w_out)
+
+	eta1 <- rowMeans(eta1_all)
+	eta2 <- rowMeans(eta2_all)
+	# non-trait fixed effects predictions from survival model
+
+	beta<-colMeans(beta_all)
+	gamma<-colMeans(gamma_all)
+	# trait coefficients from survival model
+
+	V_nest<-matrix(colMeans(V_nest_all), 2,2)
+
+	mu_etaz<-c(mean(eta1), mean(eta2), mean(THBW_noRep[,paste0(trait, "C")])) 
+	V_etaz<-cov(cbind(eta1, eta2, THBW_noRep[,paste0(trait, "C")]))
+	# mean and covariance matrices of linear predictor and traits
+
+	mu<-mean(THBW[,trait])
+
+
+	selection<-TRUE
+	for(normal in c(TRUE, FALSE)){
+		for(xfoster in c(TRUE, FALSE))
+		{
+#selection=FALSE
+# normal=FALSE
+# xfoster=FALSE
+	cat("\n","Starting: normal =",normal,"and xfoster =",xfoster," ... \n Time: ", as.character(Sys.time()),"\n")
+
+	e_st <- if(normal){
+		list(
+			n_st= c(0, sqrt(dp2cm(nest_st,family="ST")[2]), 0, 1e+16),
+			e_st= c(0, sqrt(dp2cm(resid_st,family="ST")[2]), 0, 1e+16), 
+			fixed_st = c(dp2cm(fixed_st,family="ST")[1],sqrt(dp2cm(fixed_st,family="ST")[2]), 0, 1e+16)
+			)
 	}else{
-		rep(1:nf, each=no)
+		list(
+			n_st=nest_st,
+			e_st=resid_st, 
+			fixed_st=fixed_st
+		)
 	}
 
 
-sims <- mclapply(1:n_sims,function(j){
 
-# sims<-matrix(NA,5,n_sims)
-# for(j in 1:n_sims){
 
-	ped<-matrix(NA, nf*no*ng, 6)
-	## animal, dam, sire, phenotype(z), generation, nurse
 
-	## generate breeding values, nest and residual effects
-	g<-rz(ni, list(g_st))
-	n<-rz(nf, list(e_st$n_st))[nurse_id]
-	e<-rz(ni, e_st[-which(names(e_st)=="n_st")])
 
-	ped[1:ni,1]<-1:ni
-	ped[1:ni,4]<-g+n+e
-	ped[1:ni,5]<-1
-	ped[1:ni,6]<- as.numeric(paste0(1, nurse_id))
 
-	for(i in 2:ng){
+	############################
+	## simulation
+	############################
 
-		W<-sapply(g+n+e-mu, w_func, mu_etaz=mu_etaz, V_etaz=V_etaz, beta=beta, gamma=gamma,  V_nest=V_nest)
-		# fitness evaluated for each (mean-centred) trait value
 
-		## first half of previous gen pedigree are females/second half males
-		## sample who survives - n1/2 of each sex, with their survival probability based in their
-		dam<-sample(1:(ni/2), nf, prob=W[1:(ni/2)], replace=FALSE)
-		sire<-sample((ni/2)+1:(ni/2), nf, prob=W[(ni/2)+1:(ni/2)], replace=FALSE)
+	## nurse id - depends on cross fostering
+	nurse_id <- 
+		if(xfoster){ 
+			if(x_recip){
+				rep(as.vector(rbind(1:nf,(nf:1))),each=no/2) ## reciprocal xfoster
+			}else{
+				rep(1:nf, each=no)[c((no/2+1):(ni),1:(no/2))] ## round robin xfoster
+			}
+		}else{
+			rep(1:nf, each=no)
+		}
 
-		## put surviving individual into pedigree as parents with no offspring each (random mating)
-		ped[(i-1)*ni+1:ni,1]<-(i-1)*ni+1:ni
-		ped[(i-1)*ni+1:ni,2]<-rep(dam+ni*(i-2), each=no)
-		ped[(i-1)*ni+1:ni,3]<-rep(sire+ni*(i-2), each=no)
 
-		## generate new breeding values, nest and residual effects
-		g<-(g[rep(dam, each=no)]+g[rep(sire, each=no)])/2+rz(ni, list(g_st))/sqrt(2)
+	sims <- mclapply(1:n_sims,function(j){
+	#j=1
+	# sims<-matrix(NA,5,n_sims)
+	# for(j in 1:n_sims){
+
+		ped<-matrix(NA, nf*no*ng, 6)
+		## animal, dam, sire, phenotype(z), generation, nurse
+
+		## generate breeding values, nest and residual effects
+		g<-rz(ni, list(g_st))
 		n<-rz(nf, list(e_st$n_st))[nurse_id]
 		e<-rz(ni, e_st[-which(names(e_st)=="n_st")])
 
-		ped[(i-1)*ni+1:ni,4]<-g+n+e
-		ped[(i-1)*ni+1:ni,5]<-i
-		ped[(i-1)*ni+1:ni,6]<- as.numeric(paste0(i, nurse_id))
+		ped[1:ni,1]<-1:ni
+		ped[1:ni,4]<-g+n+e
+		ped[1:ni,5]<-1
+		ped[1:ni,6]<- as.numeric(paste0(1, nurse_id))
+
+		for(i in 2:ng){
+	# i=1
+			W<-if(selection){
+				sapply(g+n+e-mu, w_func, mu_etaz=mu_etaz, V_etaz=V_etaz, beta=beta, gamma=gamma,  V_nest=V_nest)
+			}else{
+				rep(1,ni)
+			}
+
+			# fitness evaluated for each (mean-centred) trait value
+
+			## first half of previous gen pedigree are females/second half males
+			## sample who survives - ni/2 of each sex, with their survival probability based in their size
+			dam<-sample(1:(ni/2), nf, prob=W[1:(ni/2)], replace=FALSE)
+			sire<-sample((ni/2)+1:(ni/2), nf, prob=W[(ni/2)+1:(ni/2)], replace=FALSE)
+
+			## put surviving individual into pedigree as parents with no offspring each (random mating)
+			ped[(i-1)*ni+1:ni,1]<-(i-1)*ni+1:ni
+			ped[(i-1)*ni+1:ni,2]<-rep(dam+ni*(i-2), each=no)
+			ped[(i-1)*ni+1:ni,3]<-rep(sire+ni*(i-2), each=no)
+
+			## generate new breeding values, nest and residual effects
+			g<-(g[rep(dam, each=no)]+g[rep(sire, each=no)])/2+rz(ni, list(g_st))/sqrt(2)
+			n<-rz(nf, list(e_st$n_st))[nurse_id]
+			e<-rz(ni, e_st[-which(names(e_st)=="n_st")])
+
+			ped[(i-1)*ni+1:ni,4]<-g+n+e
+			ped[(i-1)*ni+1:ni,5]<-i
+			ped[(i-1)*ni+1:ni,6]<- as.numeric(paste0(i, nurse_id))
+		}
+
+		colnames(ped)<-c("id", "dam", "sire", "z", "generation","nurse")
+		ped_df<-as.data.frame(ped)
+		ped_df$id<-as.factor(ped_df$id)
+		ped_df$dam<-as.factor(ped_df$dam)
+		ped_df$sire<-as.factor(ped_df$sire)
+		ped_df$z<-as.numeric(ped_df$z)
+		ped_df$generation<-as.factor(ped_df$generation)
+		ped_df$nurse<-as.factor(ped_df$nurse)
+
+		#table(table(ped_df$nurse))
+		#table(table(paste(ped_df$dam,ped_df$nurse)))
+
+		## animal model
+		# ped.ainv1 <- asreml.Ainverse(ped[,1:3])
+		# assign("ped.ainv", ped.ainv1$ginv, envir = .GlobalEnv) 
+
+		ped.ainv1<-ainverse(ped[,1:3])
+		## make factors for asreml random effects
+		ped_df$animal <- factor(ped_df$id, levels=ped[,1])
+
+		# ped.ainv1 <- inverseA(ped[,1:3])$Ainv
+		 assign("ped.ainv", ped.ainv1, envir = .GlobalEnv) 
+
+		m1<-asreml(z~1, 
+		random=~nurse+vm(animal,ped.ainv), 
+		residual = ~idv(units),
+		data=subset(ped_df, generation!=1), 
+		trace=FALSE)
+
+		m1_var <- summary(m1)$var[-4,1]
+
+		## parent-offspring regression
+		ped_df$pz <- (ped[ped[,"dam"],"z"] + ped[ped[,"sire"],"z"])/2
+		po_df <- na.omit(aggregate(cbind(pz,z)~dam,ped_df,mean))
+		
+		out <- c(m1_var,h2_animal= m1_var[2]/sum(m1_var), h2_po =coef(lm(z~pz,po_df))[2])
+		names(out)[1:3] <- c("Vnest","Va","Ve")
+		cat(j," ")
+		# sims[,j]<-out
+		rm("ped.ainv")
+
+		return(out)
 	}
+	, mc.cores = ncores)
+	sims <- do.call(cbind,sims)
 
-	colnames(ped)<-c("id", "dam", "sire", "z", "generation","nurse")
-	ped_df<-as.data.frame(ped)
-	ped_df$id<-as.factor(ped_df$id)
-	ped_df$dam<-as.factor(ped_df$dam)
-	ped_df$sire<-as.factor(ped_df$sire)
-	ped_df$z<-as.numeric(ped_df$z)
-	ped_df$generation<-as.factor(ped_df$generation)
-	ped_df$nurse<-as.factor(ped_df$nurse)
-
-	#table(table(ped_df$nurse))
-	#table(table(paste(ped_df$dam,ped_df$nurse)))
-
-	## animal model
-	# ped.ainv1 <- asreml.Ainverse(ped[,1:3])
-	# assign("ped.ainv", ped.ainv1$ginv, envir = .GlobalEnv) 
-
-	ped.ainv1 <- inverseA(ped[,1:3])$Ainv
-	assign("ped.ainv", ped.ainv1, envir = .GlobalEnv) 
-
-	m1<-asreml(z~1, random=~nurse+giv(id), data=subset(ped_df, generation!=1), ginverse=list(id=sm2asreml(ped.ainv)),rcov = ~idv(units),trace=FALSE)
-	summary(m1)
-
-	## parent-offspring regression
-	ped_df$pz <- (ped[ped[,"dam"],"z"] + ped[ped[,"sire"],"z"])/2
-	po_df <- na.omit(aggregate(cbind(pz,z)~dam,ped_df,mean))
-	
-	out <- c(summary(m1)$var[c(1,2,4),2],h2_animal=pin(m1, h2_animal~id/(id+nurse+R))[1,1], h2_po =coef(lm(z~pz,po_df))[2])
-	names(out)[1:3] <- c("Vnest","Va","Ve")
-	cat(j," ")
-	# sims[,j]<-out
-	rm("ped.ainv")
-
-	return(out)
-}
-, mc.cores = ncores)
-sims <- do.call(cbind,sims)
-
-save(sims, file= paste0(wd,"Data/Intermediate/sim_ped_",trait, "_", if(normal){"N"}else{"ST"}, if(xfoster){"_X"}else{""},if(x_recip){"R"}else{""},".Rdata"))
+	save(sims, file= paste0(wd,"Data/Intermediate/sim_ped_",trait, "_", if(normal){"N"}else{"ST"}, if(xfoster){"_X"}else{""},if(x_recip){"R"}else{""},if(selection){""}else{"_noSel"},".Rdata"))
 
 }
-
+}
+}
+detach(model_w_out)
 
 #####
 if(plot){
 
+	# dp2cm(g_st,family="ST")[2]/(dp2cm(g_st,family="ST")[2] + dp2cm(e_st,family="ST")[2])
+
+	# pars(model_z,"sigma_A")[1,1]^2  /sum(pars(model_z,"sigma")[,1] ^2)
+
+	# posterior.mode(model_zpost[,"nu_E"])
+	# mean(model_zpost[,"nu_E"])
+
+	# posterior.mode(model_zpost[,"delta_E"])
+	# mean(model_zpost[,"delta_E"])
+
+	# posterior.mode(model_zpost[,"omega_E"])
+	# mean(model_zpost[,"omega_E"])
+
+
 obs_var <- c(
 	dp2cm(pars_ST(model_z,"nest")[,1],family="ST")[2],
-	pars(model_z,"sigma_A")[1]^2,
+	pars(model_z,"sigma_A")[1,1]^2,
 	var(mu_pred) + dp2cm(pars_ST(model_z,if(trait=="weight_g"){"E"}else{"ind"} )[,1],family="ST")[2]
 	)
 
 sim_h2 <- obs_var[2]/sum(obs_var)
 
-mean_CI2 <- function(x) c(mean(x),mean(x)+se(x)*qnorm(0.975),mean(x)-se(x)*qnorm(0.975))
+mean_CI2 <- function(x) c(mean(x),mean(x)-se(x)*qnorm(0.975),mean(x)+se(x)*qnorm(0.975))
+mean_se <- function(x) c(mean(x),se(x))
 
-pars(model_z,"sigma_nest")[1]^2
-dp2cm(pars_ST(model_z,"nest")[,1],family="ST")[2]
+# pars(model_z,"sigma_nest")[1]^2
+# dp2cm(pars_ST(model_z,"nest")[,1],family="ST")[2]
 
 sim_data <- matrix(rep(c(obs_var,sim_h2,sim_h2),3),ncol=3)
 
-load(file= paste0(wd,"Data/Intermediate/sim_ped_",trait, "_ST.Rdata"))
-simsST <- t(apply(sims,1,mean_CI2))
+load(file= paste0(wd,"Data/Intermediate/sim_ped_",trait, "_STR.Rdata"))
+simsST <- sims#t(apply(sims,1,mean_CI2))
+sumST <- t(apply(simsST,1,mean_CI2))
 
-load(file= paste0(wd,"Data/Intermediate/sim_ped_",trait, "_N.Rdata"))
+load(file= paste0(wd,"Data/Intermediate/sim_ped_",trait, "_NR.Rdata"))
 #hist(sims[1,])
-simsN <- t(apply(sims,1,mean_CI2))
+simsN <- sims#
+sumN <- t(apply(simsN,1,mean_CI2))
 
 load(file= paste0(wd,"Data/Intermediate/sim_ped_",trait, "_ST_XR.Rdata"))
-simsST_X <- t(apply(sims,1,mean_CI2))
+simsST_X <- sims#
+sumST_X <- t(apply(simsST_X,1,mean_CI2))
 
 load(file= paste0(wd,"Data/Intermediate/sim_ped_",trait, "_N_XR.Rdata"))
-simsN_X <- t(apply(sims,1,mean_CI2))
+simsN_X <- sims#
+sumN_X <- t(apply(simsN_X,1,mean_CI2))
+
+load(file= paste0(wd,"Data/Intermediate/sim_ped_weight_g_ST_XR_noSel.Rdata"))
+simsST_X_ns <- sims#
+sumST_X_ns <- t(apply(simsST_X_ns,1,mean_CI2))
+
+load(file= paste0(wd,"Data/Intermediate/sim_ped_weight_g_N_XR_noSel.Rdata"))
+simsN_X_ns <- sims#
+sumN_X_ns <- t(apply(simsN_X_ns,1,mean_CI2))
+
+load(file= paste0(wd,"Data/Intermediate/sim_ped_weight_g_STR_noSel.Rdata"))
+simsST_ns <- sims#
+sumST_ns <- t(apply(simsST_ns,1,mean_CI2))
+
+load(file= paste0(wd,"Data/Intermediate/sim_ped_weight_g_NR_noSel.Rdata"))
+simsN_ns <- sims#
+sumN_ns <- t(apply(simsN_ns,1,mean_CI2))
 
 
-rownames(simsN_X) <- rownames(simsST) <- rownames(simsST_X) <- rownames(simsN) <- rownames(sim_data) <- c("Vnest","Va","Ve","h2_animal","h2_po")
+# rownames(simsST_X_ns) <- rownames(simsN_X_ns) <- rownames(simsST_ns) <- rownames(simsN_ns) <- rownames(simsN_X) <- rownames(simsST) <- rownames(simsST_X) <- rownames(simsN) <- rownames(sim_data) <- c("Vnest","Va","Ve","h2_animal","h2_po")
 
-
-setEPS()
+if(save_plot){
+	setEPS()
 pdf(paste0(wd,"R/plots/figure_SM_pedSims_",trait, ".pdf"), , height=8, width=12)
+}
+
 {
 par(mfrow=c(1,1),mar=c(4,8,1,1))
 
-effectPlot(sim_data,xlim=c(0,0.625),offset=0.2,pch="|")
-effectPlot(simsST,col=2,add=TRUE,offset=0.1,pch="|")
-effectPlot(simsN,col=3,add=TRUE,offset=0,pch="|")
-effectPlot(simsST_X,col=4,add=TRUE,offset=-0.1,pch="|")
-effectPlot(simsN_X,col=5,add=TRUE,offset=-0.2,pch="|")
+effectPlot(sim_data,xlim=c(0,0.7),offset=0.2,pch="|")
+effectPlot(sumST,col=2,add=TRUE,offset=0.1,pch="|")
+effectPlot(sumN,col=3,add=TRUE,offset=0,pch="|")
+effectPlot(sumST_X,col=4,add=TRUE,offset=-0.1,pch="|")
+effectPlot(sumN_X,col=5,add=TRUE,offset=-0.2,pch="|")
+effectPlot(sumN_X_ns,col=6,add=TRUE,offset=-0.3,pch="|")
+effectPlot(sumST_X_ns,col=6,add=TRUE,offset=-0.4,pch="|")
+effectPlot(sumN_ns,col=6,add=TRUE,offset=-0.5,pch="|")
+effectPlot(sumST_ns,col=6,add=TRUE,offset=-0.6,pch="|")
 
 legend("bottomright",c("observed","simulated skew T","simulated normal","simulated skew T with xfoster","simulated normal with xfoster"), pch=19, col=1:5)
 abline(h=2.5, lty=3)
@@ -288,43 +355,56 @@ abline(h=2.5, lty=3)
 }
 
 #abline(v=c(0.132,0.16,0.182))
-dev.off()
+
+if(save_plot) dev.off()
 
 
-
-
-setEPS()
-pdf(paste0(wd,"R/plots/figure_pedSims_",trait, ".pdf"), height=5, width=5)
 {
-par(mfrow=c(1,1),mar=c(3,5,1,1))
+if(save_plot){
+setEPS()
+pdf(paste0(wd,"R/plots/figure6.pdf"), height=5, width=6)
+}
 
-#points(sim_data[4:5,1]~c(0.8,1.8), pch=19, cex=2)
-plot(simsST_X[5:4,1]~c(0.9,1.9), xlim=c(0.5,2.5), ylim=c(0.2,0.5), ylab="Estimated Heritability", pch=19, cex=2, col="red", xaxt="n",xlab="")
-axis(1,c(1,2),c("P-O Regression","Animal Model"))
- points(simsST[5:4,1]~c(1.1,2.1), pch=19, cex=2, col="blue")
-abline(h=sim_data[4,1], col="grey")
-arrows(c(0.9,1.9),simsST_X[5:4,2],c(0.9,1.9),simsST_X[5:4,3], code=3, angle=90, length=0.15)
- arrows(c(1.1,2.1),simsST[5:4,2],c(1.1,2.1),simsST[5:4,3], code=3, angle=90, length=0.15)
-legend("topleft",c("With x-foster","Without x-foster"), pch=19, col=c("red","blue"))}
+{par(mar=c(5,10,1,1))
+effectPlot(sumN[5:4,], offset=0.3, xlim=c(0.1,0.3), names=c("P-O \nRegression","Animal Model"), xlab="Estimated Heritability", pch=24,bg=1, cex.axis=1, cex.lab=1.5, arrow.length=0.1)
+effectPlot(sumN_X[5:4,], add=TRUE, offset=0.1, pch=25,bg=1, arrow.length=0.1)
+effectPlot(sumST[5:4,], add=TRUE, offset=-0.1, pch=24,bg=0, arrow.length=0.1)
+effectPlot(sumST_X[5:4,], add=TRUE, offset=-0.3, pch=25,bg=0, arrow.length=0.1)
+abline(v=sim_data[4,1], col="grey")
+legend("topright",c("Normal","Skewed","No x-foster","X-foster"), pch=c(21,21,24,25), pt.bg=c(1,0,"grey","grey"))
+}
 
-dev.off()
+# {
+# par(mfrow=c(1,1),mar=c(3,5,1,1))
 
+# #points(sim_data[4:5,1]~c(0.8,1.8), pch=19, cex=2)
+# plot(sumST_X[5:4,1]~c(0.9,1.9), xlim=c(0.5,2.5), ylim=c(0.1,0.3), ylab="Estimated Heritability", pch=19, cex=2, col="red", xaxt="n",xlab="")
+# axis(1,c(1,2),c("P-O Regression","Animal Model"))
+#  points(sumST[5:4,1]~c(1.1,2.1), pch=19, cex=2, col="blue")
+# abline(h=sim_data[4,1], col="grey")
+# arrows(c(0.9,1.9),sumST_X[5:4,2],c(0.9,1.9),sumST_X[5:4,3], code=3, angle=90, length=0.15)
+#  arrows(c(1.1,2.1),sumST[5:4,2],c(1.1,2.1),sumST[5:4,3], code=3, angle=90, length=0.15)
+# legend("topleft",c("With x-foster","Without x-foster"), pch=19, col=c("red","blue"))
+# }
 
+if(save_plot) dev.off()
 
 }
 
-simsN[5:4,1]/sim_data[4,1]
-simsN_X[5:4,1]/sim_data[4,1]
-simsST_X[5:4,1]/sim_data[4,1]
-simsST[5:4,1]/sim_data[4,1]
+}
 
-y<-rbind(simsN[5:4,1],simsN_X[5:4,1],simsST[5:4,1],simsST_X[5:4,1])
-yL<-rbind(simsN[5:4,2],simsN_X[5:4,2],simsST[5:4,2],simsST_X[5:4,2])
-yU<-rbind(simsN[5:4,3],simsN_X[5:4,3],simsST[5:4,3],simsST_X[5:4,3])
+sim_summary <- rbind(cbind(no_X=sumST[5:4,1]/sim_data[4,1],X=sumST_X[5:4,1]/sim_data[4,1]),v_a=c(sumST[2,1]/sim_data[2,1], sumST_X[2,1]/sim_data[2,1]))
+save(sim_summary, file=paste0(wd,"Data/Intermediate/sim_summary.Rdata"), version=2)
+
+
+
+y<-rbind(sumN[5:4,1],sumN_X[5:4,1],sumST[5:4,1],sumST_X[5:4,1])
+yL<-rbind(sumN[5:4,2],sumN_X[5:4,2],sumST[5:4,2],sumST_X[5:4,2])
+yU<-rbind(sumN[5:4,3],sumN_X[5:4,3],sumST[5:4,3],sumST_X[5:4,3])
 
 x<-matrix(c(1,2),byrow=TRUE,ncol=2,nrow=4)+(matrix(1:4,ncol=2,nrow=4)-2.5)/10
 {
-plot(y~x, xlim=c(0.5,2.5), ylim=c(0.2,0.5), ylab="Estimated Heritability",  cex=2, pch=c(24,25),bg=c(1,1,0,0), xaxt="n",xlab="")
+plot(y~x, xlim=c(0.5,2.5), ylim=c(0.1,0.3), ylab="Estimated Heritability",  cex=2, pch=c(24,25),bg=c(1,1,0,0), xaxt="n",xlab="")
 axis(1,c(1,2),c("P-O Regression","Animal Model"))
 abline(h=sim_data[4,1], col="grey")
 arrows(x,yU,x,yL, code=3, angle=90, length=0.15)

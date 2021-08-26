@@ -33,6 +33,7 @@ ncores <- 8
 n_it <- 1000
 h2a_it<-10000              # number of simulated data to approximate h2a        
 re_run_h2 <- TRUE
+include_ME <- FALSE 		## should Vp include measurement error
 
 load(paste0(data_wd,"chick_data.Rdata"))
 # THBW is the full data
@@ -47,6 +48,11 @@ if(re_run_h2){
 
 		cat("Starting",trait,"... \n")
 
+		model_files <- list.files(data_wd)[grep(paste0("stanModNormal2_pedN_",if(reduced)"reduced_",trait),list.files(data_wd))]
+		load(paste0(data_wd,model_files[length(model_files)]))
+		model_zN <- model_z
+		model_zpostN<-do.call(rbind,model_zN)[,-(1:7)]
+
 		model_files <- list.files(data_wd)[grep(paste0("stanMod_pedN_",if(reduced)"reduced_",trait),list.files(data_wd))]
 		load(paste0(data_wd,model_files[length(model_files)]))
 		## posterior distributions for stan model for the trait (model_z), as an mcmc.list object
@@ -56,7 +62,12 @@ if(re_run_h2){
 		model_zbeta <- model_zpost[,grep("beta",colnames(model_zpost))]
 		# posterior for location effects from trait model
 
-		load(paste0(data_wd,"day15_survival_model_",trait,".Rdata"))
+		model_zbetaN <- model_zpost[,grep("beta",colnames(model_zpostN))]
+
+
+		model_files <- list.files(data_wd)[grep(paste0("day15_survival_ME_",trait),list.files(data_wd))]
+		load(paste0(data_wd,model_files[length(model_files)]))
+		model_wpost<-do.call(rbind,model_w)[,-(1:7)]
 		# read in fitness models (model_w)
 
 		X<-stan_data_ped_noRep$X
@@ -64,26 +75,44 @@ if(re_run_h2){
 
 		pred_pos <- which(!grepl((paste(c(cond_term,cont_term),collapse="|")),colnames(X)))
 		#gets the position of the effects that are neither controlling or conditioning (marginal variables)
+
 		mu_pred_all <- apply(model_zbeta[,pred_pos,drop=FALSE], 1, function(x) X[,pred_pos,drop=FALSE]%*%x)
+		mu_pred_allN <- apply(model_zbetaN[,pred_pos,drop=FALSE], 1, function(x) X[,pred_pos,drop=FALSE]%*%x)
 		# gets the posterior of the predictions for the trait models for marginal variables. 
+
 
 		pred_cond_pos <- grep((paste(c(cond_term),collapse="|")),colnames(X))
 		mu_pred_cond_all <- apply(model_zbeta[,pred_cond_pos,drop=FALSE], 1, function(x) X[,pred_cond_pos,drop=FALSE]%*%x)
 		## same for conditioning variables
 
 		sigmas <- cbind(sigma_fix=apply(mu_pred_all,2,sd),model_zpost[,grep("sigma",colnames(model_zpost))])
+		sigmasN <- cbind(sigma_fix=apply(mu_pred_allN,2,sd),model_zpostN[,grep("sigma",colnames(model_zpostN))])
+
+# colMeans(sigmas)
+# colMeans(sigmasN)
+
 		## sds of random effects
 
 		# heritability before selection
-		h2b <- apply(sigmas, 1, function(x) x["sigma_A"]^2/sum(x^2))
+		h2b <- apply(sigmas[,paste0("sigma",c("_fix","_nest","_A",if(trait=="weight_g"){"_E"}else{"_ind"}))], 1, function(x) x["sigma_A"]^2/sum(x^2))
 		Va <- sigmas[,"sigma_A"]^2
+
+		h2bN <- apply(sigmasN[,paste0("sigma",c("_fix","_nest","_A",if(trait=="weight_g"){"_E"}else{"_ind"}))], 1, function(x) x["sigma_A"]^2/sum(x^2))
+		h2bN_ME <- apply(sigmasN, 1, function(x) x["sigma_A"]^2/sum(x^2))
 
 
 		z<-THBW_noRep[[trait]]
-		zC<-THBW_noRep[,paste0(trait, "C")]
-		# trait values in the survival model (globally mean centred)
-		zmean <- mean(THBW_noRep[,trait])
-		# value trait is centered at
+
+		if(trait=="weight_g"){
+			zC<-THBW_noRep[,paste0(trait, "C")]
+			# trait values in the survival model (note that it was globally mean centred)
+
+			zmean <- mean(THBW_noRep[,trait])
+			# value trait is centered at
+		}else{
+			zmean <- mean(model_wpost[,"beta0_x1"])
+			zC<-THBW_noRep[,trait] - zmean
+		}
 
 		if(is.null(cond_term)){
 			THBW_noRep$category <- as.factor(rep(1, nrow(THBW_noRep)))
@@ -95,7 +124,8 @@ if(re_run_h2){
 		# add a category column to the data.frames used in the fitness and trait models (THBW_noRep)
 		# that designate data into the (n_comb) categories based on the conditioning variables
 
-		attach(extract_w(model_w, trait, fixedEffects=formula(paste("~", fixed_w)), data=THBW_noRep))
+		model_w_out<- extract_w2(model_wpost, trait, fixedEffects=formula(paste("~", fixed_w)), data=THBW_noRep)
+		attach(model_w_out)
 		## posteriors of parameters from the fitness model
 
 
@@ -120,7 +150,9 @@ if(re_run_h2){
 		    # list of environmental distribution parameters: xi, omega, alpha, nu
 		    # fixed_st is a skew-t approximation for the marginal variable predictions 
 
-			if(trait!="weight_g") e_st$me_st<-c(0, model_zpost[i,"sigma_E"], 0, 1e+16)
+			if(include_ME & trait!="weight_g"){
+				e_st$me_st<-c(0, model_zpost[i,"sigma_E"], 0, 1e+16)
+			}
 		    # add on measurement error for traits that aren't weight 
 
 			g_st<-c(0, model_zpost[i,"sigma_A"], 0, 1e+16)
@@ -173,7 +205,9 @@ if(re_run_h2){
 				time_start <- Sys.time()		
 			}
 		}
-		save(h2a, h2b, Va, file=paste0(data_wd,"h2_",trait,".Rdata"))
+		save(h2a, h2b, Va, h2bN, h2bN_ME, file=paste0(data_wd,"h2_",trait,".Rdata"))
+		detach(model_w_out)
+
 	}
 }
 

@@ -689,8 +689,23 @@ s39 <- sum_func("39",dd39, metadata=refs, sex=FALSE)
 
 dd40 <- read.csv(paste0(dryad_wd,"40/eryn_skew.csv"))
 
-s40a <- cbind(study_ref="40a",dd40[grep("pied",dd40$X),2:7], species="Ficedula hypoleuca")
-s40b <- cbind(study_ref="40b",dd40[grep("collared",dd40$X),2:7],species="Ficedula albicollis")
+# s40a <- cbind(study_ref="40a",dd40[grep("pied",dd40$X),2:7], species="Ficedula hypoleuca")
+# s40b <- cbind(study_ref="40b",dd40[grep("collared",dd40$X),2:7],species="Ficedula albicollis")
+
+pA <- dd40[grepl("pied",dd40$X)&grepl("A",dd40$age),2:7]
+s40a <- dd40[grepl("pied",dd40$X)&grepl("J",dd40$age),2:7]
+s40a[2,1:2] <- c("U","A")
+s40a[2,3:5] <- add_skew( pA[,"mean"], sqrt(pA[,"variance"]),pA[,"skew"])
+s40a[2,6] <- sum(pA[,"n"])
+s40a <- cbind(study_ref="40a",s40a,species="Ficedula hypoleuca")
+
+
+cA <- dd40[grepl("collared",dd40$X)&grepl("A",dd40$age),2:7]
+s40b <- dd40[grepl("collared",dd40$X)&grepl("J",dd40$age),2:7]
+s40b[2,1:2] <- c("U","A")
+s40b[2,3:5] <- add_skew( cA[,"mean"], sqrt(cA[,"variance"]),cA[,"skew"])
+s40b[2,6] <- sum(cA[,"n"])
+s40b <- cbind(study_ref="40b",s40b,species="Ficedula albicollis")
 
 
 
@@ -796,9 +811,9 @@ s46 <- lapply_dataFrame(1:length(dd46_split), function(x){
 s46 <- subset(s46, n>2)
 
 
-###------------------------------------------------------
-# Others. 
-###------------------------------------------------------
+# ###------------------------------------------------------
+# # Others. 
+# ###------------------------------------------------------
 
 
 
