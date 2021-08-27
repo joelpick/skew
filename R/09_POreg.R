@@ -22,7 +22,8 @@ if(Sys.info()["user"]=="jhadfiel"){
 data_wd <- paste0(wd,"Data/Intermediate/")
 
 source(paste0(wd,"R/00_functions.R"))
-se2ci <- function(x) c(x[1],x[1]-x[2]*1.96,x[1]+x[2]*1.96 )
+
+se2ci <- function(x) c(x[1],x[1]+x[2]*qnorm(0.025),x[1]+x[2]*qnorm(0.975))
 
 load(paste0(wd,"Data/Intermediate/analysis_options.Rdata"))
 
@@ -199,10 +200,10 @@ for (trait in traits){
 	m1<-lm(z_o~z_p, weights=z_n)
 	
 	m2<-lm(z_o~offset(I(POreg_out[,"Eg_p"])[match(z_p,POreg_out[,"z"])]), weights=z_n)
-	
+	m2b<-lm(z_o~offset(I(POreg_out[,"Eg_p"])[match(z_p,POreg_out[,"z"])])+z_p, weights=z_n)
 
 	m3<-lm(z_o~offset(mean(h2bN_ME/2)*z_p), weights=z_n)
-	
+	m3b<-lm(z_o~offset(mean(h2bN_ME/2)*z_p)+z_p, weights=z_n)
 
 	xlim <- range(z_corrected)
 	# xlim <- range(POreg_out[,"z"])
@@ -259,8 +260,8 @@ p_star <- function(x) ifelse(x>0.05,"NS", ifelse(x>0.005,"*","**"))
 		diff = mean_CI(rowMeans(h2a)-h2b),
 		prop = mean_CI(rowMeans(h2a)/h2b)),
 		prop = rowMeans(h2a)/h2b,
-		po_vs_nlpo = anova(m1, m2)$`Pr(>F)`[2], 
-		po_vs_h2a=anova(m1, m3)$`Pr(>F)`[2])
+		po_vs_nlpo = anova(m2b, m2)$`Pr(>F)`[2], 
+		po_vs_h2a=anova(m3b, m3)$`Pr(>F)`[2])
 
 }
 par(mar=c(0,0,0,0))
