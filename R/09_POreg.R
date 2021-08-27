@@ -1,6 +1,6 @@
 rm(list=ls())
 
-options(width=Sys.getenv("COLUMNS"), stringsAsFactors=FALSE)
+options(stringsAsFactors=FALSE)
 
 # library(MCMCglmm)
 # library(MASS)
@@ -35,7 +35,7 @@ ncores <- 8
 re_run_POreg<-FALSE
 n_it <- 1000
 nplot_points<- 100
-save_plot<-TRUE
+save_plot<-FALSE
 
 load(paste0(data_wd,"chick_data.Rdata"))
 # THBW is the full data

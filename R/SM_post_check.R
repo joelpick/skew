@@ -29,6 +29,7 @@ reduced <- TRUE
 
 traits <-  c("tarsus_mm","headbill_mm","weight_g","wing_mm")
 traits_lab <- sub("_.+","",traits)
+traits_lab <- sub("weight","mass",traits_lab)
 substr(traits_lab,1,1) <- LETTERS[match(substr(traits_lab,1,1),letters)]
 
 # model_files <- list.files(paste0(wd,"Data/Intermediate"))[grep(paste0("stanMod_pedN_",if(reduced)"reduced_",trait),list.files(paste0(wd,"Data/Intermediate")))]

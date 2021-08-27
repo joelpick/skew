@@ -8,7 +8,7 @@ https://doi.org/10.1002/ece3.5629
 3. Jacob, Staffan et al. (2015), Data from: Microbiome affects egg carotenoid investment, nestling development and adult oxidative costs of reproduction in Great tits, Dryad, Dataset, https://doi.org/10.5061/dryad.9n741
 https://doi.org/10.1111/1365-2435.12404
 
-4. Forstmeier, Wolfgang et al. (2017), Data from: Testing the phenotype-linked fertility hypothesis in the presence and absence of inbreeding, Dryad, Dataset, https://doi.org/10.5061/dryad.515c6
+#4. Forstmeier, Wolfgang et al. (2017), Data from: Testing the phenotype-linked fertility hypothesis in the presence and absence of inbreeding, Dryad, Dataset, https://doi.org/10.5061/dryad.515c6
 https://doi.org/10.1111/jeb.13062
 
 5. Cornell, Allison; Gibson, Kate F.; Williams, Tony D. (2017), Data from: Physiological maturity at a critical life-history transition and flight ability at fledging, Dryad, Dataset, https://doi.org/10.5061/dryad.c2n66
@@ -39,8 +39,7 @@ https://doi.org/10.1111/jeb.13291
 https://doi.org/10.1111/j.1558-5646.2012.01806.x
 
 14. Nishida, Yuusuke; Takagi, Masaoki (2018), Data from: Song performance is a condition-dependent dynamic trait honestly indicating the quality of paternal care in the Bull-headed Shrike, Dryad, Dataset, https://doi.org/10.5061/dryad.c84f7c4
- https://doi.org/10.1111/jav.01794
-
+https://doi.org/10.1111/jav.01794
 
 15. Moiron, Maria et al. (2018), Data from: Functional relations between body mass and risk-taking behavior in wild great tits, Dryad, Dataset, https://doi.org/10.5061/dryad.14cn58v
 https://doi.org/10.1093/beheco/ary199
@@ -131,13 +130,3 @@ https://doi.org/10.5061/dryad.zpc866t6d
 45. Diego Santiago-Alarcon (mailing list)
 
 46. Roger Jovani (mailing list)
-
-47. Júlio Manuel Neto
-
-48. Ben Sheldon (mailing list)
-
-49. Sonya Clegg (mailing list)
-
-50. Héctor Castillo-Juárez (mailing list)
-
-51. Erik Postma (mailing list)

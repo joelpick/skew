@@ -165,7 +165,7 @@ for (trait in traits){
 				paste0(skew_var,"_E"),if(trait!="weight_g") "sigma_ME")
 	N_var <- paste0("sigma_",c("A","nest","E",if(trait!="weight_g") "ME"))
 	
-	beta_names <- c( "Intercept", "Year (2012)","Year (2013)","Year (2014)","Year (2015)","Year (2016)","Year (2017)","Year (2018)","Time of Day","Sex (M)", "Egg Weight")
+	beta_names <- c( "Intercept", "Year (2012)","Year (2013)","Year (2014)","Year (2015)","Year (2016)","Year (2017)","Year (2018)","Time of Day","Sex (M)", "Egg Mass")
 
 	col_names <- c("Posterior Mean (mode) [CI]","pMCMC")
 

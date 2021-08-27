@@ -122,14 +122,14 @@ pdf(paste0(wd,"R/plots/figure_SM_prior_sensitivity1.pdf"), , height=10, width=10
 	
 {
 	y_names <- c("Fixed", "Genetic","Nest", "Residual", "ME")
-	beta_names <- c( "Intercept", "Year (12)","Year (13)","Year (14)","Year (15)","Year (16)","Year (17)","Year (18)","Time","Sex (M)", "Egg Weight")
+	beta_names <- c( "Intercept", "Year (12)","Year (13)","Year (14)","Year (15)","Year (16)","Year (17)","Year (18)","Time","Sex (M)", "Egg Mass")
 layout(matrix(c(1,1,2,3),ncol=2))
 
 cex.axis=1
 ylims1=c(0,1.2)
 cex.heading = 1.75
 
-	par(mar=c(5,7,1,1))
+	par(mar=c(5,7.5,1,1))
 	effectPlot(stan_betasDS_delta[-1,],pch=21,  names=beta_names[-1], xlab="beta", offset=0.15)
 	effectPlot(stan_betasDS_alpha10[-1,], add=TRUE, pch=21, bg="grey")
 	effectPlot(stan_betasDS_alpha1[-1,], add=TRUE, offset=-0.15)
