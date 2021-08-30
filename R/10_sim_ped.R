@@ -1,6 +1,4 @@
 
-# source("~/Work/Skew/R/selection_gradients_skew_jarrod.R")
-
 rm(list=ls())
 
 n_sims <- 2000
@@ -265,19 +263,6 @@ detach(model_w_out)
 #####
 if(plot){
 
-	# dp2cm(g_st,family="ST")[2]/(dp2cm(g_st,family="ST")[2] + dp2cm(e_st,family="ST")[2])
-
-	# pars(model_z,"sigma_A")[1,1]^2  /sum(pars(model_z,"sigma")[,1] ^2)
-
-	# posterior.mode(model_zpost[,"nu_E"])
-	# mean(model_zpost[,"nu_E"])
-
-	# posterior.mode(model_zpost[,"delta_E"])
-	# mean(model_zpost[,"delta_E"])
-
-	# posterior.mode(model_zpost[,"omega_E"])
-	# mean(model_zpost[,"omega_E"])
-
 
 obs_var <- c(
 	dp2cm(pars_ST(model_z,"nest")[,1],family="ST")[2],
@@ -312,51 +297,7 @@ load(file= paste0(wd,"Data/Intermediate/sim_ped_",trait, "_N_XR.Rdata"))
 simsN_X <- sims#
 sumN_X <- t(apply(simsN_X,1,mean_CI2))
 
-load(file= paste0(wd,"Data/Intermediate/sim_ped_weight_g_ST_XR_noSel.Rdata"))
-simsST_X_ns <- sims#
-sumST_X_ns <- t(apply(simsST_X_ns,1,mean_CI2))
 
-load(file= paste0(wd,"Data/Intermediate/sim_ped_weight_g_N_XR_noSel.Rdata"))
-simsN_X_ns <- sims#
-sumN_X_ns <- t(apply(simsN_X_ns,1,mean_CI2))
-
-load(file= paste0(wd,"Data/Intermediate/sim_ped_weight_g_STR_noSel.Rdata"))
-simsST_ns <- sims#
-sumST_ns <- t(apply(simsST_ns,1,mean_CI2))
-
-load(file= paste0(wd,"Data/Intermediate/sim_ped_weight_g_NR_noSel.Rdata"))
-simsN_ns <- sims#
-sumN_ns <- t(apply(simsN_ns,1,mean_CI2))
-
-
-# rownames(simsST_X_ns) <- rownames(simsN_X_ns) <- rownames(simsST_ns) <- rownames(simsN_ns) <- rownames(simsN_X) <- rownames(simsST) <- rownames(simsST_X) <- rownames(simsN) <- rownames(sim_data) <- c("Vnest","Va","Ve","h2_animal","h2_po")
-
-if(save_plot){
-	setEPS()
-pdf(paste0(wd,"R/plots/figure_SM_pedSims_",trait, ".pdf"), , height=8, width=12)
-}
-
-{
-par(mfrow=c(1,1),mar=c(4,8,1,1))
-
-effectPlot(sim_data,xlim=c(0,0.7),offset=0.2,pch="|")
-effectPlot(sumST,col=2,add=TRUE,offset=0.1,pch="|")
-effectPlot(sumN,col=3,add=TRUE,offset=0,pch="|")
-effectPlot(sumST_X,col=4,add=TRUE,offset=-0.1,pch="|")
-effectPlot(sumN_X,col=5,add=TRUE,offset=-0.2,pch="|")
-effectPlot(sumN_X_ns,col=6,add=TRUE,offset=-0.3,pch="|")
-effectPlot(sumST_X_ns,col=6,add=TRUE,offset=-0.4,pch="|")
-effectPlot(sumN_ns,col=6,add=TRUE,offset=-0.5,pch="|")
-effectPlot(sumST_ns,col=6,add=TRUE,offset=-0.6,pch="|")
-
-legend("bottomright",c("observed","simulated skew T","simulated normal","simulated skew T with xfoster","simulated normal with xfoster"), pch=19, col=1:5)
-abline(h=2.5, lty=3)
-
-}
-
-#abline(v=c(0.132,0.16,0.182))
-
-if(save_plot) dev.off()
 
 
 {
@@ -374,76 +315,11 @@ abline(v=sim_data[4,1], col="grey")
 legend("topright",c("Normal","Skewed","No x-foster","X-foster"), pch=c(21,21,24,25), pt.bg=c(1,0,"grey","grey"))
 }
 
-# {
-# par(mfrow=c(1,1),mar=c(3,5,1,1))
 
-# #points(sim_data[4:5,1]~c(0.8,1.8), pch=19, cex=2)
-# plot(sumST_X[5:4,1]~c(0.9,1.9), xlim=c(0.5,2.5), ylim=c(0.1,0.3), ylab="Estimated Heritability", pch=19, cex=2, col="red", xaxt="n",xlab="")
-# axis(1,c(1,2),c("P-O Regression","Animal Model"))
-#  points(sumST[5:4,1]~c(1.1,2.1), pch=19, cex=2, col="blue")
-# abline(h=sim_data[4,1], col="grey")
-# arrows(c(0.9,1.9),sumST_X[5:4,2],c(0.9,1.9),sumST_X[5:4,3], code=3, angle=90, length=0.15)
-#  arrows(c(1.1,2.1),sumST[5:4,2],c(1.1,2.1),sumST[5:4,3], code=3, angle=90, length=0.15)
-# legend("topleft",c("With x-foster","Without x-foster"), pch=19, col=c("red","blue"))
-# }
 
 if(save_plot) dev.off()
 
 }
 
 }
-
-sim_summary <- rbind(cbind(no_X=sumST[5:4,1]/sim_data[4,1],X=sumST_X[5:4,1]/sim_data[4,1]),v_a=c(sumST[2,1]/sim_data[2,1], sumST_X[2,1]/sim_data[2,1]))
-save(sim_summary, file=paste0(wd,"Data/Intermediate/sim_summary.Rdata"), version=2)
-
-
-
-y<-rbind(sumN[5:4,1],sumN_X[5:4,1],sumST[5:4,1],sumST_X[5:4,1])
-yL<-rbind(sumN[5:4,2],sumN_X[5:4,2],sumST[5:4,2],sumST_X[5:4,2])
-yU<-rbind(sumN[5:4,3],sumN_X[5:4,3],sumST[5:4,3],sumST_X[5:4,3])
-
-x<-matrix(c(1,2),byrow=TRUE,ncol=2,nrow=4)+(matrix(1:4,ncol=2,nrow=4)-2.5)/10
-{
-plot(y~x, xlim=c(0.5,2.5), ylim=c(0.1,0.3), ylab="Estimated Heritability",  cex=2, pch=c(24,25),bg=c(1,1,0,0), xaxt="n",xlab="")
-axis(1,c(1,2),c("P-O Regression","Animal Model"))
-abline(h=sim_data[4,1], col="grey")
-arrows(x,yU,x,yL, code=3, angle=90, length=0.15)
-legend("topleft",c("Normal","Skewed","No x-foster","X-foster"), pch=c(21,21,24,25), pt.bg=c(1,0,"grey","grey"))
-}
-# setEPS()
-# pdf("/Users/joelpick/Dropbox/0_Presentations/images/skew_h2_sim2.pdf", height=5, width=5)
-# {
-# par(mfrow=c(1,1),mar=c(3,5,1,1))
-
-# #points(sim_data[4:5,1]~c(0.8,1.8), pch=19, cex=2)
-# plot(simsST_X[5:4,1]~c(0.9,1.9), xlim=c(0.5,2.5), ylim=c(0.1,0.2), ylab="Estimated Heritability", pch=19, cex=2, col="red", xaxt="n",xlab="")
-# axis(1,c(1,2),c("P-O Regression","Animal Model"))
-# # points(simsST[5:4,1]~c(1.1,2.1), pch=19, cex=2, col="blue")
-# abline(h=sim_data[4,1], col="grey")
-# arrows(c(0.9,1.9),simsST_X[5:4,2],c(0.9,1.9),simsST_X[5:4,3], code=3, angle=90, length=0.15)
-# # arrows(c(1.1,2.1),simsST[5:4,2],c(1.1,2.1),simsST[5:4,3], code=3, angle=90, length=0.15)
-# legend("topleft",c("With x-foster","Without x-foster"), pch=19, col=c("red","blue"))
-# }
-
-# dev.off()
-
-# simsST["Va",1] - sim_data["Va",1]
-# simsST["Ve",1] - sim_data["Ve",1]
-# simsST["Vnest",1] - sim_data["Vnest",1]
-# (simsST["h2_animal",1] - sim_data["h2_animal",1])/sim_data["h2_animal",1]
-# (simsST["h2_po",1] - sim_data["h2_po",1])/sim_data["h2_animal",1]
-
-# (simsST["Va",1] - sim_data["Va",1])/sim_data["Va",1]
-
-
-# rowMeans(sims)
-
-# true_h2<-rep(obs_var["A",1]/sum(obs_var[,1]), n_sims)
-# true_h2a<-rep(0.192137, n_sims)
-
-
-# par(mfrow=c(2,2))
-# hist(sims[2,],breaks=20, main="asreml Va");abline(v=obs_var["A",1], col="red")
-# hist(sims[4,],breaks=20, main="asreml h2");abline(v=obs_var["A",1]/sum(obs_var[,1]), col="red");abline(v=0.192137, col="blue")
-# hist(sims[5,],breaks=20, main="po-regression");abline(v=obs_var["A",1]/sum(obs_var[,1]), col="red");abline(v=0.192137, col="blue")
 

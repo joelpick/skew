@@ -209,15 +209,6 @@ nest_orig_egg <- function(trait,age,data,ainv,measurement_error=TRUE){
 		mod_egg_DS=var(predict_ASREML(fixed_egg_time,data,mod_egg_DS)),
 		mod_egg_A=var(predict_ASREML(fixed_egg_time,data,mod_egg_A)))
 
-		#lrt= c(chisq=2*(mod_orig_egg_A$loglik-mod_egg_A$loglik), p=(1-pchisq(2*(mod_orig_egg_A$loglik-mod_egg_A$loglik),1))/2),
-
-		# prop = round(rbind(
-		# 	asreml_varcomp(mod_orig_A)/sum(asreml_varcomp(mod_orig_A)), 
-		# 	asreml_varcomp(mod_orig_egg_A)/sum(asreml_varcomp(mod_orig_egg_A)),
-		# 	c(nest_orig=0,asreml_varcomp(mod_egg_A))[c(1,3,2,4:(length(asreml_varcomp(mod_egg_A))+2))]/sum(nest_orig=0,asreml_varcomp(mod_egg_A))
-		# ),5),
-#print(lrt(mod_orig_egg,mod_egg))
-
 		out$mod_egg_DS_Fi <- inv_hessian_fixed(fixed_egg,data,mod_egg_DS)
 		out$mod_egg_A_Fi <- inv_hessian_fixed(fixed_egg,data,mod_egg_A)
 		
@@ -257,11 +248,6 @@ THBW_egg$timeC <- scale(THBW_egg$time_hr, scale=FALSE)
 THBW_egg$clutchSizeC <- scale(THBW_egg$clutch_size, scale=FALSE)
 THBW_egg$nestHatchDateC <- scale(THBW_egg$nest_hatch_date, scale=FALSE)
 THBW_egg$eggWeightC <- scale(THBW_egg$egg_weight, scale=FALSE)
-
-# apply(THBW_egg,2,function(x)sum(is.na(x)))
-# ## check if any unsexed birds recruited
-# THBW_egg[apply(THBW_egg,1,function(x)any(is.na(x))),]
-# table(apply(THBW_egg,1,function(x)sum(is.na(x))))
 
 
 # models
@@ -318,23 +304,3 @@ THBW_egg_noRep<- subset(THBW_egg,!duplicated(bird_id))
 modM_M <- nest_orig_egg(trait="weight_g",age=15, data=THBW_egg_noRep, ainv=ainv_thbw_M, measurement_error=FALSE)
 
 save(modT_M,modHB_M,modW_M,modM_M,file=paste0(wd,"Data/Intermediate/dam_sire_egg_M.Rdata"))
-
-# ainv<-asreml.Ainverse(ped)$ginv
-# 	mod <- asreml(
-# 		fixed= tarsus_mm ~ malePresent + clutchSizeC + nestHatchDateC  + hatchDay + year + timeC + sex,  
-# 		random= ~ nest_orig + nest + ped(animal),
-# 		ginverse=list(animal=ainv),
-# 		rcov = ~idv(units) ,
-# 		trace=FALSE,
-# 		data=THBW_egg_noRep)
-# library(MCMCglmm)
-# Tri2M(mod$ai,FALSE,TRUE)
-# summary(mod)$vcov
-# 	mod2 <- asreml(
-# 		fixed= tarsus_mm ~ malePresent + clutchSizeC + nestHatchDateC  + hatchDay + year + timeC + sex,  
-# 		random= ~ nest_orig + nest,
-# 		rcov = ~idv(units) ,
-# 		trace=FALSE,
-# 		data=THBW_egg_noRep)
-# asreml_varcomp(mod)
-# asreml_varcomp(mod2)

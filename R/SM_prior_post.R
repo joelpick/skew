@@ -105,10 +105,6 @@ for(trait in c("tarsus_mm","headbill_mm","wing_mm","weight_g")){
 		prior = dunif(seq(4,40,length.out=101), 4,40),
 		posterior=model_zpost[,if(trait=="weight_g"){"nu_E"}else{"nu_ind"}],xlab=expression(nu)
 	)
-	# pp_plot(x = gamma_prior1$x, 
-	# 	prior = gamma_prior1$y,
-	# 	posterior=model_zpost[,if(trait=="weight_g"){"gamma_E"}else{"gamma_ind"}], xlab=expression(gamma)
-	# )
 	pp_plot(x = gamma_prior1$x, 
 		prior = gamma_prior1$y,
 		posterior=model_zpost[,if(trait=="wing_mm"){"gamma_ind"}else{"gamma_E"}], xlab=expression(gamma)

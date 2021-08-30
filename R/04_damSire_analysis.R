@@ -1,6 +1,6 @@
 rm(list=ls())
 
-options(width=Sys.getenv("COLUMNS"), stringsAsFactors=FALSE)
+options(stringsAsFactors=FALSE)
 
 # library(rstan)
 # rstan_options(auto_write = TRUE)
@@ -27,8 +27,6 @@ load(paste0(wd,"Data/Intermediate/chick_data.Rdata"))
 load(paste0(wd,"Data/Intermediate/starting_values",if(reduced)"_reduced",".Rdata"))
 load(paste0(wd,"Data/Intermediate/stan_data",if(reduced)"_reduced",".Rdata"))
 
-
-#names(makeSV(modT, stan_data_ped_noRep, ME=TRUE, delta=TRUE))
 
 ###-----------------------------###
 ###-----All models--------------###
@@ -114,16 +112,8 @@ load(paste0(wd,"Data/Intermediate/starting_values",if(reduced)"_reduced",".Rdata
 load(paste0(wd,"Data/Intermediate/stan_data",if(reduced)"_reduced",".Rdata"))
 
 
-#names(makeSV(modT, stan_data_ped_noRep, ME=TRUE, delta=TRUE))
-
-###-----------------------------###
-###-----All models--------------###
-###-----------------------------###
-
 for (trait in c("wing_mm")){
-	## t hb and m run for 4000 warmup and 6000 after
-	## w run for 5000 warmup and 10000 after
-# trait="tarsus_mm"
+
 	if(trait=="weight_g"){
 		stan_data_trait <- stan_data_DS_noRep
 		stanModel_DS <- cmdstan_model(paste0(wd,"stan/skew_t_RE_day15_DamSire_alpha10.stan"))
@@ -199,19 +189,7 @@ load(paste0(wd,"Data/Intermediate/starting_values",if(reduced)"_reduced",".Rdata
 load(paste0(wd,"Data/Intermediate/stan_data",if(reduced)"_reduced",".Rdata"))
 
 
-#names(makeSV(modT, stan_data_ped_noRep, ME=TRUE, delta=TRUE))
-
-###-----------------------------###
-###-----All models--------------###
-###-----------------------------###
-
-
-
-
 for (trait in c("wing_mm")){
-	## t hb and m run for 4000 warmup and 6000 after
-	## w run for 5000 warmup and 10000 after
-# trait="tarsus_mm"
 	if(trait=="weight_g"){
 		stan_data_trait <- stan_data_DS_noRep
 		stanModel_DS <- cmdstan_model(paste0(wd,"stan/skew_t_RE_day15_DamSire_alpha10.stan"))

@@ -209,12 +209,3 @@ model_z_table_DS,
 model_z_table_N, file=paste0(data_wd,"table_data.Rdata"),version=2)
 
 
-library(knitr)
-knitr::kable(model_w_table)
-
-# rownames(model_w_table$tarsus_mm[[1]])
-knitr::kable(model_z_table_DS[[1]])
-
-
-
-

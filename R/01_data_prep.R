@@ -6,7 +6,7 @@
 
 rm(list=ls())
 
-options(width=Sys.getenv("COLUMNS"), stringsAsFactors=FALSE)
+options(stringsAsFactors=FALSE)
 
 if(Sys.info()["user"]=="jhadfiel"){
 	wd <- "..."

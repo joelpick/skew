@@ -2,11 +2,8 @@ rm(list=ls())
 
 options(width=Sys.getenv("COLUMNS"), stringsAsFactors=FALSE)
 
-# library(MCMCglmm)
-# library(MASS)
 library(mvtnorm)
 library(sn)
-#library(rstan)
 library(cmdstanr)
 library(coda)
 library(cubature)
@@ -87,10 +84,6 @@ if(re_run_h2){
 
 		sigmas <- cbind(sigma_fix=apply(mu_pred_all,2,sd),model_zpost[,grep("sigma",colnames(model_zpost))])
 		sigmasN <- cbind(sigma_fix=apply(mu_pred_allN,2,sd),model_zpostN[,grep("sigma",colnames(model_zpostN))])
-
-# colMeans(sigmas)
-# colMeans(sigmasN)
-
 		## sds of random effects
 
 		# heritability before selection
@@ -182,13 +175,8 @@ if(re_run_h2){
 	  			zo<-0.5*g+rst(h2a_it, dp=g_st)*sqrt(0.75) +rz(h2a_it, e_st) + adj_mean - zmean
 	  			## phenotypes of parents and offspring
 
-	  	## why are offspring given the year-sex mean?
-		## should I centre on the global phenotypic mean, or on the predicted phenotypic mean from the model? (they are different, and will vary over iterations)
-
 	  			Wz<-sapply(zp, w_func, mu_etaz=mu_etaz, V_etaz=V_etaz, beta=beta_all[i,], gamma=gamma_all[i,],  V_nest=matrix(V_nest_all[i,], 2,2))
 	  			## fitness of parents
-
-		## this function then takes mu_etaz and V_etaz which are based on the observed data, does this matter? Because it includes a phenotypic mean for each year sex combo, which will differ from the model prediction
 
 	  			wz<-Wz/mean(Wz)
 	  			## relative fitness of parents
@@ -212,6 +200,4 @@ if(re_run_h2){
 }
 
 
-# load(paste0(data_wd,"h2_tarsus_mm.Rdata"))
-# h2a
 	

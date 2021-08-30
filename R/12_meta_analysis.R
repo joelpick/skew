@@ -47,13 +47,6 @@ plot(MAmod)
 
 save(MAmod, file= paste0(wd,"Data/Intermediate/meta_analysis.Rdata"), version=2)
 
-# MA_summary <- rbind(summary(MAmod)$sol[,c(1:3,5)],diff=mean_CI(MAmod$Sol[,1]-MAmod$Sol[,2],pMCMC=TRUE))
-# save(MA_summary, file= paste0(wd,"Data/Intermediate/meta_analysis_summary.Rdata"), version=2)
-
-#aod::wald.test(cov(MAmod$Sol[,2:3]), colMeans(MAmod$Sol[,2:3]), Terms=1:2)$result$chi2["P"]
-## https://stat.ethz.ch/pipermail/r-sig-mixed-models/2017q3/025933.html
-
-
 
 
 setEPS()
@@ -78,49 +71,3 @@ points(c(2,1),all$skew[all$study_ref==43], pch=19,col="red", cex=1.2)
 
 dev.off()
 
-
-
-
-
-
-resid <- all$skew - predict(MAmod) 
-plot(sqrt(all$n)~resid, pch=19, col=as.factor(all$age))
-abline(v=0, col="grey")
-
-n<-1:10000
-SE<-sqrt(6*n*(n-1)/((n-2)*(n+1)*(n+3)))
-lines(sqrt(n)~I(-1*SE*1.96), col="blue")
-lines(sqrt(n)~I(SE*1.96), col="blue")
-
-save(MAmod, file= paste0(wd,"Data/Intermediate/meta_analysis.Rdata"))
-save(MAmod, file= paste0(wd,"Data/Intermediate/meta_analysis.Rdata"))
-
-
-
-length(unique(all$species))
-
-table(all$age)
-boxplot(skew~age,all)
-#points(c(1,3,2,4),s43$skew,pch=19, cex=2)
-with(all,tapply(skew,list(age),mean))
-
-
-
-
-
-symbols(all$group,all$skew, circle= sqrt( (all$n)/pi )/200, inches=FALSE, bg=alpha(c(2,1),0.5)[as.factor(all$age)], add=TRUE)
-symbols(c(1,3,2,4),s43$skew,, circle= sqrt( (s43$n)/pi )/200, inches=FALSE,bg=3, add=TRUE)
-
-
-
-
-
-rbind(summary(MAmod)$Gcov,summary(MAmod)$Rcov)
-summary(MAmod)$sol
-
-head(MAmod$Sol)
-
-plot(skew~sqrt(n),all, col=as.factor(all$age), pch=19)
-plot(skew~n,all, col=as.factor(all$age), pch=19, log="x")
-with(all,arrows(n,skew+SE,n,skew-SE,length=0.01, angle=90, code=3))
-abline(h=0, col="grey")

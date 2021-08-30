@@ -27,7 +27,6 @@ simSTRE <- function(levels,dp){
 
 fixed <- pars(mod_stan_wing_dam,"beta")
 nest <- pars_ST(mod_stan_wing_dam, "nest")
-#animal <- pars(mod_stan_wing_dam, "sigma_A")
 dam_sire <- pars_ST(mod_stan_wing_dam, "dam_sire")
 resid <- pars_ST(mod_stan_wing_dam, "ind")
 me <- pars(mod_stan_wing_dam, "sigma_E")
@@ -68,8 +67,6 @@ pdf(paste0(wd,"/R/plots/figure_SM_lmer_sim.pdf"), height=10, width=10)
 {
 par(mfrow=c(1,1),mar=c(4,12,1,1))
 	effectPlot(t(apply(out,1,mean_CI2)), xlab="Estimate", cex.lab=1.75, arrow.length=0.2, xaxt="n")
-# effectPlot(fixed,add=TRUE, col="red", offset=0.2)
-# points(fixed[,1],17:1, pch=19, col="red")
 arrows(fixed_plot,(17:1)-0.3,fixed_plot,(17:1)+0.3,code=0,col="red",lwd=3)
 axis(1,seq(-5,8,1),c(seq(-5,5,1),40,41,42))
 axis.break(1,5.5,style="slash")

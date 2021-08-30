@@ -52,14 +52,6 @@ pdf(paste0(wd,"R/plots/figure1.pdf"), height=8, width=12)
 {
 
 nPlot <- 5
-# layout(matrix(c(1:(5*(nPlot+1))),ncol=5,byrow=TRUE), height=c(1,rep(3,nPlot+1)),width=c(1,rep(3,4)))
-
-# par(mar=c(1,0,0,0))
-# blankPlot()
-# blankPlot(); text(0,0,"Genetic",cex=2.5)
-# blankPlot(); text(c(-1,0),c(0,0),c("+","Environ."),cex=2.5)
-# blankPlot(); text(c(-1,0),c(0,0),c("=","Phenotype"),cex=2.5)
-# blankPlot()#; text(0,0,"h2 (0.5)",cex=3)
 
 layout(matrix(c(1:(5*(nPlot))),ncol=5,byrow=TRUE), width=c(1,rep(3,4)))
 par(mar=c(2,2,1,0),mgp=c(0.5,1,0)) 

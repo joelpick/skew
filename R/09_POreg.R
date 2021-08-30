@@ -2,9 +2,6 @@ rm(list=ls())
 
 options(stringsAsFactors=FALSE)
 
-# library(MCMCglmm)
-# library(MASS)
-# library(mvtnorm)
 library(sn)
 library(rstan)
 library(cmdstanr)
@@ -62,12 +59,9 @@ substr(traits_lab,1,1) <- LETTERS[match(substr(traits_lab,1,1),letters)]
 cex.heading = 1.75
 cex.axis=1
 
-#,"weight_g"
-# if(re_run_POreg){
 
 for (trait in traits){
 	#trait="wing_mm"
-
 
 	model_files <- list.files(data_wd)[grep(paste0("stanMod_pedN_",if(reduced)"reduced_",trait),list.files(data_wd))]
 	load(paste0(data_wd,model_files[length(model_files)]))
@@ -128,23 +122,10 @@ for (trait in traits){
 		e_ulimits<-unlist(lapply(e_st, function(x){qst(1-limit_prob, dp=x)}))
   			# lower and upper limits when integrating over environmental effects
 
-
-
 		cat("\n", trait," - Start: ", as.character(Sys.time()), " - Total points = ",length(Zplot_points),"\n")
 
-# range(THBW[,"wing_mm"])
-# mean(THBW[,"wing_mm"])
-# range(z_corrected)
-
-		# dz_p<-NULL    # phenotypic density function
-		# Eg_p<-NULL    # parent-offspring regression 
-		# dEg_p<-NULL   # derivative of parent-offspring regression 
 
 		POreg_list <- mclapply(Zplot_points,function(j){
-			# dz_p<- dz(j, g_st=g_st, e_st=e_st)
-			# Eg_p <- POreg(j,  g_st=g_st, e_st=e_st)
-			# dEg_p <- dPOreg(j, g_st=g_st, e_st=e_st, Eg_p=Eg_p)
-
 
 			E_p<-hcubature(conv, e_llimits, e_ulimits, z_p=j, g_st=g_st, e_st=e_st)$integral
 			Eg_p<-hcubature(wconv, e_llimits, e_ulimits, z_p=j, g_st=g_st, e_st=e_st)$integral
@@ -167,7 +148,6 @@ for (trait in traits){
 		save(z_corrected,POreg_out, file=paste0(wd,"Data/Intermediate/nonLinearPO_", trait,".Rdata"))
 	}else{
 		load(paste0(data_wd,"nonLinearPO_",trait,".Rdata"))
-	# if(trait!="wing_mm") load(paste0(data_wd,"nonLinearPO_",trait,".Rdata"))
 
 	}
 		# POreg_out <- cbind(POreg_out,dzn_p=dzn_p)
@@ -221,16 +201,7 @@ for (trait in traits){
 	z_pred1<-predict(m1, newdata=list(z_p=range(z_p)), interval="confidence")
 	lines(z_pred1[,1]~range(z_p), lty=1, col="blue", lwd=2)
 		
-	# z_pred4<-coef(m4) + mean(h2b/2) * range(z_p)
-	# lines(z_pred4~range(z_p), lty=1, col="orange", lwd=2)
-
-
-	# h2_all <- rbind(
-	# 	h2obs =se2ci(coef(summary(m1))[2,1:2]*2),
-	# 	h2a=mean_CI(rowMeans(h2a)),
-	# 	h2b=mean_CI(h2b))
-	# 	#, diff=mean_CI(rowMeans(h2a)-h2b))
-p_star <- function(x) ifelse(x>0.05,"NS", ifelse(x>0.005,"*","**"))
+	p_star <- function(x) ifelse(x>0.05,"NS", ifelse(x>0.005,"*","**"))
 
 	h2s<- rbind(
 		# h2obs =se2ci(coef(summary(m1))[2,1:2]*2),
@@ -242,15 +213,7 @@ p_star <- function(x) ifelse(x>0.05,"NS", ifelse(x>0.005,"*","**"))
 	max_x <- min(max(h2s[,1])*2.2,1)
 	x <- max_x * c(0.85)
 	par(mar=c(3,4,2,1))
-	# effectPlot(h2s, col= c("blue","red","blue","red"), names=c(expression(italic(h[PO]^2)),expression(italic(h[bN]^2)),expression(italic(h[a]^2)),expression(italic(h[b]^2))), xlim=c(0,max_x), cex.axis.scale=1)
-	# abline(h=2.5, lty=2)
 	
- 	# arrows(x,3,x,4,length=0)
- 	# text(x + max_x*0.075, c(3.5), p_star(anova(m1, m3)$`Pr(>F)`[2]),cex=1)
-
- 	# arrows(x,1,x,2,length=0)
- 	# text(x + max_x*0.075, c(1.5), p_star(pMCMC(rowMeans(h2a)-h2b)),cex=1)
-
 	effectPlot(h2s, col= c("blue","red"), names=c(expression(italic(h[a]^2)),expression(italic(h[b]^2))), xlim=c(0,max_x), cex.axis.scale=1)
  	arrows(x,1,x,2,length=0)
  	text(x + max_x*0.075, c(1.5), p_star(pMCMC(rowMeans(h2a)-h2b)),cex=1)
@@ -274,45 +237,3 @@ if(save_plot) dev.off()
 
 save(h2_all, file=paste0(data_wd,"h2_results.Rdata"), version=2)
 
-
-# load(paste0(wd,"Data/Intermediate/starting_values.Rdata"))
-
-# var(X%*%model_zbeta)+sum(pars(model_z,"sigma")[,1]^2)
-# var(z)
-# sum(modT$mod_A$V) + var(X%*%modT$mod_A$F)
-
-# rbind(c(fixed=var(X%*%modT$mod_A$F),modT$mod_A$V),c(var(X%*%model_zbeta),pars(model_z,"sigma")[,1]^2)
-
-# 	)
-
-		# m_summary<-list(m1.2=anova(m1, m2)$`Pr(>F)`[2], m1.3=anova(m1, m3)$`Pr(>F)`[2], m1.4=anova(m1, m4)$`Pr(>F)`[2], po_reg2=coef(summary(m1))[2,1:2]*2)
-
-		# if(save){
-		# 	save(m_summary, file=paste0(wd,"Data/Intermediate/", gsub("selection_gradient", "selection_gradient_msummary", files)), version=2)
-		# 	save(m_summary, file=paste0(wd,"Data/Intermediate/", gsub(selection_gradient", "selection_gradient_msummary", files_date)), version=2)
-	
-
-
-# zpoints<-"cparents+0.1" 
-# po-regression and fitness function to be evaluated at trait values: 
-# even: spread evenly over the range    
-# parents: equal to those that become parents
-# parents+: equal to those that become parents + evenly spaced phenotypes up to the min/max
-# cparents/cparents+: equal to those that become parents minus the posterior mean prediction from the cond/contr variables
-# numerical value after even and parents+ determines the spacing
-
-		# if(grepl("even", zpoints)){
-		# 	Zplot_points<-seq(min(z), max(z), as.numeric(gsub("even", "", zpoints)))
-		# }
-		# if(grepl("parents", zpoints)){
-		#     if(grepl("cparents", zpoints)){
-		#     	z_corrected <- z - mu_predC	
-		# 	}else{
-		# 		z_p_corrected <- z
-		# 	}  
-		# 	Zplot_points <- sort(unique(z_p_corrected[THBW_noRep$bird_id%in%c(THBW_noRep$dam_P, THBW_noRep$sire_P)]))
-		# }
-		# if(grepl("parents\\+", zpoints)){	
-		# 	Zplot_points<-sort(unique(c(Zplot_points, seq(min(z), max(z), as.numeric(gsub("c?parents\\+", "", zpoints))))))
-		# }  
-		# nplot_points<-length(Zplot_points)

@@ -31,12 +31,6 @@ nplot_points<- 100
 re_run <- FALSE
 save_plot <- TRUE
 
-
-# trait<-"headbill_mm"
-#cont_term<-c("timeC")   	# terms to control for
-#model_moments<-FALSE 		# when calculating selection gradients should model-based or sample moments be used
-
-
 load(paste0(data_wd,"chick_data.Rdata"))
 # THBW_noRep is data excluding repeat measures, used for survival analysis
 
@@ -60,12 +54,6 @@ if(re_run){
 	model_files <- list.files(data_wd)[grep(paste0("day15_survival_ME_",trait),list.files(data_wd))]
 	load(paste0(data_wd,model_files[length(model_files)]))
 	model_wpost<-do.call(rbind,model_w)[,-(1:7)]
-
-		# load(paste0(wd,"Data/Intermediate/Wplot_points.Rdata"))
-		# trait values at which to evaluate the fitness function for visualisation purposes
-		# Wplot_points<-get(paste0("Wplot_points_",trait))
-		# nplot_points<-length(Wplot_points)
-
 
 		z<-THBW_noRep[,trait]
 		# trait values
@@ -265,90 +253,3 @@ if(save_plot) dev.off()
 
 save(internal_optimum, file=paste0(data_wd,"internal_optimum_ME.Rdata"), version=2)
 )
-
-# mean_CI(rowMeans(beta3)/rowMeans(beta1))
-# mean_CI(rowMeans(beta2)/rowMeans(beta1))
-
-# PCI(rowMeans(beta1)/rowMeans(beta3), p=TRUE, p_adj=-1)
-# PCI(rowMeans(beta1)/rowMeans(beta2), p=TRUE, p_adj=-1)
-# 	load(paste0(data_wd,"selection_gradients_",trait,".Rdata"))
-# summary(model_w)
-
-# sum(rowMeans(dmin) >0 & rowMeans(dmax) <0)/nrow(dmax)
-
-
-
-
-# load(paste0(wd,"Data/Intermediate/stan_data",if(reduced)"_reduced",".Rdata"))
-# # data used in stan models, stan_data_ped_noRep$X is the design matrix (without repeat measures)
-
-# # read in trait models (model_z):
-# model_files <- list.files(paste0(wd,"Data/Intermediate"))[grep(paste0("stanMod_pedN_",if(reduced)"reduced_",trait),list.files(paste0(wd,"Data/Intermediate")))]
-# load(paste0(wd,"Data/Intermediate/",model_files[length(model_files)]))
-# ## this gives the posterior distributions for stan model for the trait, as an mcmc.list object
-
-# ## design matrix for trait model
-# X <- stan_data_ped_noRep$X
-
-
-# pred_cond_pos <- grep((paste(c(cond_term),collapse="|")),colnames(X))
-# pred_cont_pos <- grep((paste(c(cont_term),collapse="|")),colnames(X))
-# # gets the position of the effects associated with conditioning and controlling variables in the design matrix for the trait models 
-
-# # pred_cond<-colnames(X)[pred_cond_pos] # terms to condition on 
-# # pred_cont<-colnames(X)[pred_cont_pos] # terms to control for 
-# # gets the names of those
-
-# pred_pos <- which(!grepl((paste(c(cond_term,cont_term),collapse="|")),colnames(X)))
-# # gets the position of the effects that are neither controlling or conditioning (marginal variables)
-
-# mu_pred_condX<-X[,pred_cond_pos,drop=FALSE]
-# mu_pred_contX<-X[,pred_cont_pos,drop=FALSE]
-# mu_predX<-X[,pred_pos,drop=FALSE]
-# # gets the design matrices for the trait models for conditioning, controlling and marginal variables. 
-
-
-# model_zpost<-matrix(posterior::as_draws_array(model_z), prod(dim(posterior::as_draws_array(model_z))[1:2]),dim(posterior::as_draws_array(model_z))[3], dimnames=list(NULL, dimnames(posterior::as_draws_array(model_z))[[3]]))[,-(1:7)]
-# head(model_zpost)
-
-# model_zbeta <- model_zpost[,grep("beta",colnames(model_zpost))]
-# head(model_zbeta)
-# # posterior for location effects from trait model
-
-# model_znbeta<-model_zpost[,-grep("beta",colnames(model_zpost))]
-# # posterior for distribution effects from trait model
-
-# t_terms<-c("xi", "omega", "alpha", "nu")
-
-
-
-
-# 	if(model_moments){
-# 		mu_pred_cond<-mu_pred_condX%*%model_zbeta[i,pred_cond_pos]
-# 		mu_pred_cont<-mu_pred_contX%*%model_zbeta[i,pred_cont_pos]
-# 		mu_pred<-mu_predX%*%model_zbeta[i,pred_pos]
-# 		# gets the predictions for the trait models for conditioning, controlling and marginal variables. 
-
-# 		e_st<-list(n_st=model_znbeta[i,paste0(t_terms, "_nest")],
-# 			       e_st=model_znbeta[i,paste0(t_terms, if(trait=="weight_g"){"_E"}else{"_ind"})], 
-# 			       fixed_st=st.mple(y = mu_pred)$dp)
-
-# 		if(trait!="weight_g") e_st$me_st<-c(0, model_znbeta[i,"sigma_E"], 0, 1e+16)
-
-# 	    # list of environmental distribution parameters: xi, omega, alpha, nu
-# 	    # fixed_st is a skew-t approximation for the marginal variable predictions 
-
-# 		g_st<-c(0, model_znbeta[i,"sigma_A"], 0, 1e+16)
-# 	# list of genetic distribution parameters
-# 	}
-
-#    		if(model_moments){
-# 			mu<-dp2cm(c(list(g_st), e_st), family="ST")
-# 			# central moments of the deviation of the (non-mean-centred) trait values from the conditional/controlling predictions as inferred from the trait model
-
-# 			mu[1] <- mu[1] + mean(mu_pred_cond[THBW_noRep$category==cat])
-# 			# mean adjusted for conditional prediction for category j 
-#    		}else{
-# 			mu <- scm(z_sub)
-# 			# If model_moments=FALSE use the observed moments
-#    		}

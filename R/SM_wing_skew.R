@@ -57,12 +57,7 @@ sumDatOut <- function(stan_mod,X,skew=TRUE,ME=TRUE,DS=TRUE){
 		resid_var <- pars(stan_mod, paste0("sigma_",resid_name))^2
 		resid_skew <- pars(stan_mod, paste0("gamma_",resid_name))
 	}
-	# resid_var <- if(DS){
-	# 	mean_CI(apply(mod_out, c(1,2), function(x) x[paste0("sigma_",resid_name)]^2-x["sigma_dam_sire"]^2*2))
-	# }else{
-	# 	pars(stan_mod, paste0("sigma_",resid_name))^2
-	# }
-	# resid_skew <- pars(stan_mod, paste0("gamma_",resid_name))
+
 	A_var <- if(DS){
 		pars(stan_mod, "sigma_dam_sire")^2*4
 	}else{
@@ -117,14 +112,12 @@ pdf(paste0(wd,"/skew/R/plots/figure_SM_wing_skew.pdf"), height=10, width=10)
 	layout(matrix(c(1,1,2,3),2), width=c(8,6))
 	par(mar=c(3,12,3,1))
 
-	#effectPlot(normalModT$fixed[-1,],col="grey")
 	effectPlot(asremlModDS$fixed[-1,],offset=-0.1,col="darkgrey",main="Fixed Effects")
 	effectPlot(asremlModPed$fixed[-1,],offset=-0.3, add=TRUE,col="darkgrey",pch=17)
 	effectPlot(skewMod$fixed[-1,], add=TRUE,offset=0.3)#,add=TRUE)
 	effectPlot(skewModPed$fixed[-1,],offset=0.1,add=TRUE,pch=17)
 
 par(mar=c(3,6,3,1))
-	#effectPlot(normalModT$var,col="grey")
 	effectPlot(skewMod$var,main="Variance",offset=0.3)#,add=TRUE)
 	effectPlot(skewModPed$var,offset=0.1,add=TRUE,pch=17)
 	effectPlot(asremlModDS$var,offset=-0.1,add=TRUE,col="darkgrey")

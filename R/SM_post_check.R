@@ -32,8 +32,6 @@ traits_lab <- sub("_.+","",traits)
 traits_lab <- sub("weight","mass",traits_lab)
 substr(traits_lab,1,1) <- LETTERS[match(substr(traits_lab,1,1),letters)]
 
-# model_files <- list.files(paste0(wd,"Data/Intermediate"))[grep(paste0("stanMod_pedN_",if(reduced)"reduced_",trait),list.files(paste0(wd,"Data/Intermediate")))]
-# load(paste0(wd,"Data/Intermediate/",model_files[length(model_files)]))
 load(paste0(wd,"Data/Intermediate/chick_data.Rdata"))
 
 load(paste0(wd,"Data/Intermediate/starting_values",if(reduced)"_reduced",".Rdata"))
@@ -42,7 +40,6 @@ load(paste0(wd,"Data/Intermediate/stan_data",if(reduced)"_reduced",".Rdata"))
 load(paste0(wd,"Data/Intermediate/stan_data",if(reduced)"_reduced",".Rdata"))
 
 
-# par(mfrow=c(4,3))
 
 {
 setEPS()
@@ -118,10 +115,6 @@ for(trait in traits){
 		colnames(sigmasDS)[colnames(sigmasDS)=="sigma_ind"] <- "sigma_E"
 		colnames(gammasDS)[colnames(gammasDS)=="gamma_ind"] <- "gamma_E"
 
-		# gammasN1 <- cbind(gammasN1,gamma_ME=0)
-		# colnames(sigmasN1)[colnames(sigmasN1)=="sigma_E"] <- "sigma_ME"
-		# colnames(sigmasN1)[colnames(sigmasN1)=="sigma_ind"] <- "sigma_E"
-		
 		gammasN2 <- cbind(gammasN2,gamma_ME=0)
 		colnames(sigmasN2)[colnames(sigmasN2)=="sigma_E"] <- "sigma_ME"
 		colnames(sigmasN2)[colnames(sigmasN2)=="sigma_ind"] <- "sigma_E"
@@ -144,28 +137,22 @@ for(trait in traits){
 	
 
 	sigmasDS <- sigmasDS[,paste0("sigma",col_orderDS)]
-	# sigmasN1 <- sigmasN1[,paste0("sigma",col_orderA)]
 	sigmasN2 <- sigmasN2[,paste0("sigma",col_orderA)]
 	sigmasN2_C <- sigmasN2_C[,paste0("sigma",col_orderA)]
 	h2bN2 <- apply(sigmasN2_C, 1, function(x) x["sigma_A"]^2/sum(x^2))
 
 	gammasA <- gammasA[,paste0("gamma",col_orderA)]
 	gammasDS <- gammasDS[,paste0("gamma",col_orderDS)]
-	# gammasN1 <- gammasN1[,paste0("gamma",col_orderA)]
 	gammasN2 <- gammasN2[,paste0("gamma",col_orderA)]
 
 	post_predA <- sapply(1:1000,function(x) add_skew(c(colMeans(mu_allA)[x],rep(0,if(trait=="weight_g"){3}else{4})), sigmasA[x,], gammasA[x,]))	
 	post_predDS <- sapply(1:1000,function(x) add_skew(c(colMeans(mu_allDS)[x],rep(0,if(trait=="weight_g"){3}else{4})), sigmasDS[x,], gammasDS[x,]))
-	# post_predN1 <- sapply(1:1000,function(x) add_skew(c(colMeans(mu_allN1)[x],rep(0,if(trait=="weight_g"){3}else{4})), sigmasN1[x,], gammasN1[x,]))
 	post_predN2 <- sapply(1:1000,function(x) add_skew(c(colMeans(mu_allN2)[x],rep(0,if(trait=="weight_g"){3}else{4})), sigmasN2[x,], gammasN2[x,]))
 
-
-	# post_pred2 <- sapply(1:1000,function(x) add_skew(c(colMeans(mu_all2)[x],0,0,0,0), sigmas2[x,], gammas2[x,]))
 
 	post_g <- matrix(rep(sum_stat(THBW[,trait]),3),3,3)
 	post_gA <- t(apply(post_predA,1,mean_CI))
 	post_gDS <- t(apply(post_predDS,1,mean_CI))
-	# post_gN1 <- t(apply(post_predN1,1,mean_CI))
 	post_gN2 <- t(apply(post_predN2,1,mean_CI))
 
 

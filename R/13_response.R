@@ -34,13 +34,6 @@ for(trait in traits){
 
 save(response,file=paste0(data_wd,"response.Rdata"),version=2)
 
-apply(do.call(rbind,response), 1, mean_CI)
-0.17502979/0.12066459
-1-0.12066459/0.17502979
-100*rowMeans(do.call(rbind,response)/colMeans(THBW_noRep[,traits]))
-
-par(mfrow=c(1,1),mar=c(5,10,1,1))
-effectPlot(t(100*apply(do.call(rbind,response)/colMeans(THBW_noRep[,traits]),1,mean_CI)), xlab="% change per generation")
 
 
 {if(save_plot){
@@ -110,42 +103,6 @@ for(trait in traits){
 
 	rm(Wplot_points)
 }
-
-if(save_plot) dev.off()
-
-}
-
-
-
-{if(save_plot){
-	setEPS()
-	pdf(paste0(wd,"R/plots/figure_SM_densities.pdf"), , height=8, width=15)
-}
-
-par(mfcol=c(3,4), mar=c(5,5,1,1))
-
-for(trait in traits){
-	load(paste0(data_wd,"selection_gradients_ME_",trait,".Rdata"))
-	load(paste0(data_wd,"nonLinearPO_",trait,".Rdata"))
-	load(paste0(data_wd,"h2_",trait,".Rdata"))
-	WDplot_pred <- colMeans(WDplot)
-	POreg_out2 <- POreg_out[match(Wplot_points,POreg_out[,"z"]),]
-	delta_d <- POreg_out2[,"dz_p"]-POreg_out2[,"dzn_p"]
-
-	
-	plot(POreg_out2[,"dz_p"]~Wplot_points, type="l")
-	lines(POreg_out2[,"dzn_p"]~Wplot_points, col="red")
-
-	plot(delta_d~Wplot_points, type="l")
-	abline(h=0, col="grey")
-
-	plot(WDplot_pred~Wplot_points, pch=19, col=alpha(c("red","blue")[as.factor(delta_d > 0)],abs(delta_d*5)))
-	abline(h=0, col="grey")
-	rm(Wplot_points)
-
-}
-
-alpha(c(1:10),1:10)
 
 if(save_plot) dev.off()
 
