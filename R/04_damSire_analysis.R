@@ -15,7 +15,7 @@ library(mvtnorm)
 if(Sys.info()["user"]=="jhadfiel"){
 	wd <- "..."
 }else{
-	wd <- "~/Dropbox/0_blue_tits/skew/"
+	wd <- "~/github/skew/"
 }
 
 load(paste0(wd,"Data/Intermediate/analysis_options.Rdata"))
@@ -99,7 +99,7 @@ library(mvtnorm)
 if(Sys.info()["user"]=="jhadfiel"){
 	wd <- "..."
 }else{
-	wd <- "~/Dropbox/0_blue_tits/skew/"
+	wd <- "~/github/skew/"
 }
 
 load(paste0(wd,"Data/Intermediate/analysis_options.Rdata"))
@@ -176,7 +176,7 @@ library(mvtnorm)
 if(Sys.info()["user"]=="jhadfiel"){
 	wd <- "..."
 }else{
-	wd <- "~/Dropbox/0_blue_tits/skew/"
+	wd <- "~/github/skew/"
 }
 
 load(paste0(wd,"Data/Intermediate/analysis_options.Rdata"))

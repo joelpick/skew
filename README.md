@@ -1,4 +1,4 @@
-# Code and Data for Analysis of Phenotypic Skew in Juvenile Blue Tits
+Code and Data for Analysis of Phenotypic Skew in Juvenile Blue Tits for the manuscript 'Pick, Lemon, Thomson & Hadfield. Decomposing phenotypic skew and its effects on the predicted response to strong selection.'
 
 ## Data
 

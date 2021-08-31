@@ -3,7 +3,6 @@ rm(list=ls())
 options(stringsAsFactors=FALSE)
 
 library(sn)
-library(rstan)
 library(cmdstanr)
 library(coda)
 library(cubature)
@@ -14,7 +13,7 @@ library(viridis)
 if(Sys.info()["user"]=="jhadfiel"){
 	wd <- "~/Work/Skew/"
 }else{
-	wd <- "~/Dropbox/0_blue_tits/skew/"
+	wd <- "~/github/skew/"
 }
 data_wd <- paste0(wd,"Data/Intermediate/")
 
@@ -47,7 +46,7 @@ load(paste0(wd,"Data/Intermediate/starting_values",if(reduced)"_reduced",".Rdata
 h2_all <- list()
 if(save_plot){
 	setEPS()
-	pdf(paste0(wd,"R/plots/figure5.pdf"), , height=6, width=12)
+	pdf(paste0(wd,"Plots/figure5.pdf"), , height=6, width=12)
 }
 mat <- matrix(c(1:16),ncol=4)
 mat2 <- cbind(c(0,0,17,0,0),rbind(mat[1:3,],c(0,18,18,0),mat[4,]))

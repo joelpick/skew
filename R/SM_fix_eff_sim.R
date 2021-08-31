@@ -7,10 +7,11 @@ library(sn)
 library(scales)
 library(pbapply)
 library(lme4)
+library(plotrix)
 
 run<-FALSE
 
-wd <- "~/Dropbox/0_blue_tits/skew"
+wd <- "~/github/skew"
 data_wd <- paste0(wd,"/Data/Intermediate/")
 source(paste0(wd,"/R/00_functions.R"))
 load(paste0(data_wd,"chick_data.Rdata"))
@@ -63,7 +64,7 @@ out[1,] <- out[1,]-35
 fixed_plot <- fixed[,1]
 fixed_plot[1] <- fixed_plot[1]-35
 setEPS()
-pdf(paste0(wd,"/R/plots/figure_SM_lmer_sim.pdf"), height=10, width=10)
+pdf(paste0(wd,"/Plots/figure_SM_lmer_sim.pdf"), height=10, width=10)
 {
 par(mfrow=c(1,1),mar=c(4,12,1,1))
 	effectPlot(t(apply(out,1,mean_CI2)), xlab="Estimate", cex.lab=1.75, arrow.length=0.2, xaxt="n")

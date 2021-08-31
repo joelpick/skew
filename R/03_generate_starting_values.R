@@ -4,12 +4,12 @@ options(stringsAsFactors=FALSE)
 
 library(MCMCglmm)
 library(MasterBayes)
-library(asreml)
+library(asreml) ##uses asreml4
 
 if(Sys.info()["user"]=="jhadfiel"){
 	wd <- "..."
 }else{
-	wd <- "~/Dropbox/0_blue_tits/skew/"
+	wd <- "~/github/skew/"
 }
 source(paste0(wd,"R/00_functions.R"))
 load(paste0(wd,"Data/Intermediate/chick_data.Rdata"))

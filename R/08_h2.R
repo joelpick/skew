@@ -1,6 +1,6 @@
 rm(list=ls())
 
-options(width=Sys.getenv("COLUMNS"), stringsAsFactors=FALSE)
+options(stringsAsFactors=FALSE)
 
 library(mvtnorm)
 library(sn)
@@ -13,7 +13,7 @@ library(parallel)
 if(Sys.info()["user"]=="jhadfiel"){
 	wd <- "~/Work/Skew/"
 }else{
-	wd <- "~/Dropbox/0_blue_tits/skew/"
+	wd <- "~/github/skew/"
 }
 data_wd <- paste0(wd,"Data/Intermediate/")
 

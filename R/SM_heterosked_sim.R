@@ -11,16 +11,14 @@ parallel::detectCores(logical = FALSE)
 if(Sys.info()["user"]=="jhadfiel"){
 	wd <- "..."
 }else{
-	wd <- "~/Dropbox/0_blue_tits/skew/"
+	wd <- "~/github/skew/"
 }
 
 run <- FALSE
 
 
-source(paste0(wd,"R/functions.R"))
+source(paste0(wd,"R/00_functions.R"))
 load(paste0(wd,"Data/Intermediate/chick_data.Rdata"))
-
-load(paste0(wd,"Data/Intermediate/stan_summary_data.Rdata"))
 
 hetVarSim <- function(y,x,stanModel_skew_t,stanModel_skew,stanModel_t){
 
@@ -229,7 +227,7 @@ xBias<-array(1:72,dim=c(4,2,6)) + array(rep(0:5,each=8),dim=c(4,2,6))
 
 
 setEPS()
-pdf(paste0(wd,"R/plots/figure_SM_fixed_sim.pdf"), height=8, width=15)
+pdf(paste0(wd,"Plots/figure_SM_fixed_sim.pdf"), height=8, width=15)
 
 {
 layout(matrix(c(1:4),ncol=1), height=c(1,5,5,5))

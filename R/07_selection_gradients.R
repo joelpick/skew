@@ -15,7 +15,7 @@ library(scales)
 if(Sys.info()["user"]=="jhadfiel"){
 	wd <- "~/Work/Skew/"
 }else{
-	wd <- "~/Dropbox/0_blue_tits/skew/"
+	wd <- "~/github/skew/"
 }
 data_wd <- paste0(wd,"Data/Intermediate/")
 
@@ -186,7 +186,7 @@ beta_plot<-function(beta, beta1, beta2, col=1,names=c(expression(beta),expressio
 
 if(save_plot){
 setEPS()
-pdf(paste0(wd,"R/plots/figure4_ME.pdf"), height=10, width=8)
+pdf(paste0(wd,"Plots/figure4_ME.pdf"), height=10, width=8)
 }
 {
 layout(matrix(1:8,ncol=2,byrow=TRUE),width=c(4,2))

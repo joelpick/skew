@@ -1,19 +1,17 @@
 rm(list=ls())
 
-options(width=Sys.getenv("COLUMNS"), stringsAsFactors=FALSE)
+options(stringsAsFactors=FALSE)
 
 if(Sys.info()["user"]=="jhadfiel"){
 	wd <- "..."
 }else{
-	wd <- "~/Dropbox/0_blue_tits/skew/"
+	wd <- "~/github/skew/"
 }
 
 source(paste0(wd,"R/00_functions.R"))
 
 all<- read.csv(paste0(wd,"Data/Intermediate/MA_data.csv"))
 
-#install.packages("vioplot")
-library("vioplot")
 library(scales)
 library(MCMCglmm)
 
@@ -50,7 +48,7 @@ save(MAmod, file= paste0(wd,"Data/Intermediate/meta_analysis.Rdata"), version=2)
 
 
 setEPS()
-pdf(paste0(wd,"R/plots/figure_meta_analysis.pdf"), height=5, width=4)
+pdf(paste0(wd,"Plots/figure2.pdf"), height=5, width=4)
 
 {
 	par(mar=c(3,4,1,2), cex.axis=1.1, cex.lab=1.25, mgp=c(2.5,1,0))

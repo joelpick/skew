@@ -1,6 +1,6 @@
 rm(list=ls())
 
-options(width=Sys.getenv("COLUMNS"), stringsAsFactors=FALSE)
+options(stringsAsFactors=FALSE)
 
 library(rstan)
 library(MCMCglmm)
@@ -8,17 +8,17 @@ library(sn)
 library(scales)
 library(pbapply)
 
-wd <- "~/Dropbox/0_blue_tits"
-data_wd <- paste0(wd,"/skew/Data/Intermediate/")
+wd <- "~/github/skew/"
+data_wd <- paste0(wd,"Data/Intermediate/")
 
-source(paste0(wd,"/skew/R/00_functions.R"))
+source(paste0(wd,"R/00_functions.R"))
 
 load(paste0(data_wd,"chick_data.Rdata"))
 
 load(paste0(data_wd,"stanModWing_DS20191210_1850.Rdata"))
 load(paste0(data_wd,"stanModWing_pedN20191220_0127.Rdata"))
 
-load(file= paste0(wd,"/skew/Data/Intermediate/dam_sire_egg.Rdata"))
+load(file= paste0(data_wd,"dam_sire_egg.Rdata"))
 
 X <- model.matrix(~ malePresent + clutchSizeC + nestHatchDateC + hatchDay + year + timeC + sex + eggWeightC,THBW)
 
@@ -107,7 +107,7 @@ asremlModDS <- asreml_sumDatOut(modW)
 asremlModPed <- asreml_sumDatOut(modW,DS=FALSE)
 
 setEPS()
-pdf(paste0(wd,"/skew/R/plots/figure_SM_wing_skew.pdf"), height=10, width=10)
+pdf(paste0(wd,"Plots/figure_SM_wing_skew.pdf"), height=10, width=10)
 {
 	layout(matrix(c(1,1,2,3),2), width=c(8,6))
 	par(mar=c(3,12,3,1))

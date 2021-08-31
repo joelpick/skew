@@ -50,7 +50,7 @@
     - Data/Intermediate/stanMod_DS_reduced_trait_time.Rdata
     - Data/Intermediate/stanMod_DS_reduced_trait_alpha10_time.Rdata
     - Data/Intermediate/stanMod_DS_reduced_trait_alpha1_time.Rdata
-  which all contain 'model_z' containing the posterior distributions
+  which all contain 'model_z' containing the posterior distributions of the traits models
 
 
 # 05_animalModel_analysis.R
@@ -60,12 +60,12 @@
 - For each of the four traits this produces
     - Data/Intermediate/stanMod_pedN_reduced_trait_time.Rdata
     - Data/Intermediate/stanModNormal2_pedN_reduced_trait_time.Rdata
-  which all contain 'model_z' containing the posterior distributions
+  which all contain 'model_z' containing the posterior distributions of the traits models
 
 
 # 06_survival_analysis.R
 
-- Runs survival models
+- Runs survival models for all traits accounting for measurement error
 - Produces
     - Data/Intermediate/day15_survival_ME_trait_time.Rdata
 
@@ -117,7 +117,7 @@
 - Produces
     - meta_analysis.Rdata
 - Plots
-    - figure_meta_analysis.pdf
+    - figure2.pdf
 
 
 # 13_response.R

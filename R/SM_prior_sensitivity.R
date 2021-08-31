@@ -13,7 +13,7 @@ library(viridis)
 if(Sys.info()["user"]=="jhadfiel"){
 	wd <- "..."
 }else{
-	wd <- "~/Dropbox/0_blue_tits/skew/"
+	wd <- "~/github/skew/"
 }
 
 data_wd <- paste0(wd,"Data/Intermediate/")
@@ -110,7 +110,7 @@ trait <- "wing_mm"
 
 
 setEPS()
-pdf(paste0(wd,"R/plots/figure_SM_prior_sensitivity1.pdf"), , height=10, width=10)
+pdf(paste0(wd,"Plots/figure_SM_prior_sensitivity1.pdf"), , height=10, width=10)
 
 	
 {
@@ -176,7 +176,7 @@ pp_plot<-function(x,prior,posterior,main="",xlab="",ylim=NULL,xlim=NULL){
 
 
 	setEPS()
-	pdf(paste0(wd,"R/plots/figure_SM_prior_sensitivity2.pdf"), , height=8, width=12)
+	pdf(paste0(wd,"Plots/figure_SM_prior_sensitivity2.pdf"), , height=8, width=12)
 
 {
 	par(mfrow=c(3,3), mar=c(5,4,1,1))

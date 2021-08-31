@@ -8,7 +8,7 @@ library(scales)
 if(Sys.info()["user"]=="jhadfiel"){
 	wd <- "~/Work/Skew/"
 }else{
-	wd <- "~/Dropbox/0_blue_tits/skew/"
+	wd <- "~/github/skew/"
 }
 data_wd <- paste0(wd,"Data/Intermediate/")
 source(paste0(wd,"R/00_functions.R"))
@@ -38,7 +38,7 @@ save(response,file=paste0(data_wd,"response.Rdata"),version=2)
 
 {if(save_plot){
 	setEPS()
-	pdf(paste0(wd,"R/plots/figure_SM_heywood.pdf"), , height=8.5, width=15)
+	pdf(paste0(wd,"Plots/figure_SM_heywood.pdf"), , height=8.5, width=15)
 }
 
 

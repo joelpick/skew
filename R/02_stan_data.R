@@ -2,10 +2,6 @@ rm(list=ls())
 
 options(stringsAsFactors=FALSE)
 
-#library(rstan)
-#rstan_options(auto_write = TRUE)
-#options(mc.cores = parallel::detectCores())
-
 library(MasterBayes)
 library(MCMCglmm)
 
@@ -14,7 +10,7 @@ library(MCMCglmm)
 if(Sys.info()["user"]=="jhadfiel"){
 	wd <- "..."
 }else{
-	wd <- "~/Dropbox/0_blue_tits/skew/"
+	wd <- "~/github/skew/"
 }
 
 source(paste0(wd,"R/00_functions.R"))

@@ -1,6 +1,6 @@
 rm(list=ls())
 
-options(width=Sys.getenv("COLUMNS"), stringsAsFactors=FALSE)
+options(stringsAsFactors=FALSE)
 
 library(sn)
 library(scales)
@@ -13,7 +13,7 @@ library(viridis)
 if(Sys.info()["user"]=="jhadfiel"){
 	wd <- "..."
 }else{
-	wd <- "~/Dropbox/0_blue_tits/skew/"
+	wd <- "~/github/skew/"
 }
 
 data_wd <- paste0(wd,"Data/Intermediate/")
@@ -27,7 +27,7 @@ source(paste0(wd,"R/00_functions.R"))
 
 
 setEPS()
-pdf(paste0(wd,"R/plots/figure3.pdf"), height=7.5, width=15)
+pdf(paste0(wd,"Plots/figure3.pdf"), height=7.5, width=15)
 
 {
 layout(matrix(1:20,ncol=5,byrow=FALSE), width=c(1,rep(3,4)))#, height=c(1.5,1,1)
@@ -151,7 +151,7 @@ dev.off()
 #sum_stat <- function(x)c(mean(x),sd(x),stand_skew(x))
 
 setEPS()
-pdf(paste0(wd,"R/plots/figure_SM_skewt_Gaussian.pdf"), height=7.5, width=15)
+pdf(paste0(wd,"Plots/figure_SM_skewt_Gaussian.pdf"), height=7.5, width=15)
 
 {
 	# layout(matrix(1:20,ncol=5,byrow=FALSE), width=c(1,rep(3,4)), height=c(1,10,5,4))

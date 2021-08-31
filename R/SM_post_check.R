@@ -5,7 +5,7 @@ options( stringsAsFactors=FALSE)
 if(Sys.info()["user"]=="jhadfiel"){
 	wd <- "~/Work/Skew/"
 }else{
-	wd <- "~/Dropbox/0_blue_tits/skew/"
+	wd <- "~/github/skew/"
 }
 data_wd <- paste0(wd,"Data/Intermediate/")
 
@@ -43,7 +43,7 @@ load(paste0(wd,"Data/Intermediate/stan_data",if(reduced)"_reduced",".Rdata"))
 
 {
 setEPS()
-pdf(paste0(wd,"R/plots/figure_SM_post_check.pdf"), , height=8, width=15)
+pdf(paste0(wd,"Plots/figure_SM_post_check.pdf"), , height=8, width=15)
 
 
 layout(matrix(c(1:20),4,5), height=c(1,4,4,4))

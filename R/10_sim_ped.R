@@ -14,7 +14,7 @@ trait<-"weight_g"
 options(stringsAsFactors=FALSE)
 
 library(parallel)
-library(asreml)
+library(asreml) # asreml4
 library(MCMCglmm)
 library(MASS)
 library(mvtnorm)
@@ -26,7 +26,7 @@ library(cubature)
 if(Sys.info()["user"]=="jhadfiel"){
 	wd <- "~/Work/Skew/"
 }else{
-	wd <- "~/Dropbox/0_blue_tits/skew/"
+	wd <- "~/github/skew/"
 }
 data_wd <- paste0(wd,"Data/Intermediate/")
 
@@ -303,7 +303,7 @@ sumN_X <- t(apply(simsN_X,1,mean_CI2))
 {
 if(save_plot){
 setEPS()
-pdf(paste0(wd,"R/plots/figure6.pdf"), height=5, width=6)
+pdf(paste0(wd,"Plots/figure6.pdf"), height=5, width=6)
 }
 
 {par(mar=c(5,10,1,1))

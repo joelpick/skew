@@ -4,10 +4,10 @@ rm(list=ls())
 if(Sys.info()["user"]=="jhadfiel"){
 	wd <- "~/Work/Skew/"
 }else{
-	wd <- "~/Dropbox/0_blue_tits/skew/"
+	wd <- "~/github/skew/"
 }
 
-options(width=Sys.getenv("COLUMNS"), stringsAsFactors=FALSE)
+options(stringsAsFactors=FALSE)
 
 source(paste0(wd,"R/00_functions.R"))
 

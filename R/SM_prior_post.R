@@ -6,7 +6,7 @@ options( stringsAsFactors=FALSE)
 if(Sys.info()["user"]=="jhadfiel"){
 	wd <- "~/Work/Skew/"
 }else{
-	wd <- "~/Dropbox/0_blue_tits/skew/"
+	wd <- "~/github/skew/"
 }
 
 library(sn)
@@ -58,7 +58,7 @@ for(trait in c("tarsus_mm","headbill_mm","wing_mm","weight_g")){
 
 
 	setEPS()
-	pdf(paste0(wd,"R/plots/figure_SM_prior_post_",trait,".pdf"), , height=8, width=15)
+	pdf(paste0(wd,"Plots/figure_SM_prior_post_",trait,".pdf"), , height=8, width=15)
 
 	{
 

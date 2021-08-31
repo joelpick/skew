@@ -1,10 +1,10 @@
 rm(list=ls())
 
-options(width=Sys.getenv("COLUMNS"), stringsAsFactors=FALSE)
+options(stringsAsFactors=FALSE)
 
-wd <- "~/Dropbox/0_blue_tits/skew"
+wd <- "~/github/skew"
 
-source(paste0(wd,"/R/functions.R"))
+source(paste0(wd,"/R/00_functions.R"))
 load(file= paste0(wd,"/Data/Intermediate/dam_sire_egg.Rdata"))
 load(file= paste0(wd,"/Data/Intermediate/dam_sire_egg_M.Rdata"))
 
@@ -27,9 +27,24 @@ plot_results1 <- function(mod,ylim,main,rows, cols){
 	}
 }
 
+add_mod <- function(mod1,mod2){
+	mod_all <- list()
+	for(i in 1:6) mod_all$vars_mean <- rbind(mod_all$vars_mean , mod1$vars_mean[i,],mod2$vars_mean[i,])
+	for(i in 1:6) mod_all$vars_SE <- rbind(mod_all$vars_SE , mod1$vars_SE[i,],mod2$vars_SE[i,])
+	for(i in 1:6) mod_all$fixed_mean <- rbind(mod_all$fixed_mean , mod1$fixed_mean[i,],mod2$fixed_mean[i,])
+	for(i in 1:6) mod_all$fixed_SE <- rbind(mod_all$fixed_SE , mod1$fixed_SE[i,],mod2$fixed_SE[i,])
+	for(i in 1:6) mod_all$fixed_var <- c(mod_all$fixed_var , mod1$fixed_var[i],mod2$fixed_var[i])
+	return(mod_all)
+}
+modT_all<-add_mod(modT,modT_M)
+modHB_all<-add_mod(modHB,modHB_M)
+modW_all<-add_mod(modW,modW_M)
+modM_all<-add_mod(modM,modM_M)
+
+
 
 setEPS()
-pdf(paste0(wd,"/R/plots/figure_SM_eggSize.pdf"), height=10, width=10)
+pdf(paste0(wd,"/Plots/figure_SM_eggSize.pdf"), height=10, width=10)
 {
 par(mfrow=c(2,2))
 plot_results1(modT, ylim=c(0,0.2), main="Tarsus",rows=c(2,4,6), cols=1:6)
@@ -41,7 +56,7 @@ plot_results1(modW, ylim=c(0,7.5), main="Wing",rows=c(2,4,6), cols=1:6)
 dev.off()
 
 setEPS()
-pdf(paste0(wd,"/R/plots/figure_SM_DS_Animal.pdf"), height=10, width=10)
+pdf(paste0(wd,"/Plots/figure_SM_DS_Animal.pdf"), height=10, width=10)
 {
 par(mfrow=c(2,2))
 plot_results1(modT, ylim=c(0,0.2), main="Tarsus",rows=c(5,6), cols=c(1:3,5:6))
@@ -53,7 +68,7 @@ plot_results1(modW, ylim=c(0,7.5), main="Wing",rows=c(5,6), cols=c(1:3,5:6))
 dev.off()
 
 setEPS()
-pdf(paste0(wd,"/R/plots/figure_SM_pedigree.pdf"), height=10, width=10)
+pdf(paste0(wd,"/Plots/figure_SM_pedigree.pdf"), height=10, width=10)
 {
 par(mfrow=c(2,2))
 plot_results1(modT_all, ylim=c(0,0.2), main="Tarsus",rows=c(11,12), cols=c(1:3,5:6))

@@ -1,17 +1,17 @@
 rm(list=ls())
 
-options(width=Sys.getenv("COLUMNS"), stringsAsFactors=FALSE)
+options(stringsAsFactors=FALSE)
 
 library(MCMCglmm)
 library(MasterBayes)
-library(asreml)
+library(asreml) #asreml3
 
 if(Sys.info()["user"]=="jhadfiel"){
 	wd <- "..."
 }else{
-	wd <- "~/Dropbox/0_blue_tits/skew/"
+	wd <- "~/github/skew/"
 }
-source(paste0(wd,"R/functions.R"))
+source(paste0(wd,"R/00_functions.R"))
 
 ## adapted pin function for asreml
 pin<-function (object, transform) {

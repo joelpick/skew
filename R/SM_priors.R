@@ -7,7 +7,7 @@ options( stringsAsFactors=FALSE)
 if(Sys.info()["user"]=="jhadfiel"){
 	wd <- "~/Work/Skew/"
 }else{
-	wd <- "~/Dropbox/0_blue_tits/skew/"
+	wd <- "~/github/skew/"
 }
 
 source(paste0(wd,"R/00_functions.R"))
@@ -49,7 +49,7 @@ plot_priors <- function(nu,alpha=NULL,delta=NULL){
 n <- 1000000
 
 setEPS()
-pdf(paste0(wd,"R/plots/figure_SM_skew_priors.pdf"), , height=7, width=13)
+pdf(paste0(wd,"Plots/figure_SM_skew_priors.pdf"), , height=7, width=13)
 {
 set.seed(255)
 par(mfrow=c(3,4), mar=c(5,5,1,1))

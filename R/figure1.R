@@ -7,7 +7,7 @@ library(sn)
 if(Sys.info()["user"]=="jhadfiel"){
 	wd <- "..."
 }else{
-	wd <- "~/Dropbox/0_blue_tits/skew/"
+	wd <- "~/github/skew/"
 }
 
 source(paste0(wd,"R/00_functions.R"))
@@ -48,7 +48,7 @@ nlh2_plot <- function(G_skew,E_skew,h2,colG=NULL,colE=NULL){
 
 
 setEPS()
-pdf(paste0(wd,"R/plots/figure1.pdf"), height=8, width=12)
+pdf(paste0(wd,"Plots/figure1.pdf"), height=8, width=12)
 {
 
 nPlot <- 5
