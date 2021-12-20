@@ -5,7 +5,8 @@ n_sims <- 2000
 ncores <- 8
 rerun <- FALSE
 plot <- TRUE
-save_plot <- TRUE
+save_plot <- FALSE
+table <- TRUE
 normal <- TRUE
 xfoster <- TRUE
 x_recip <- TRUE # reciprocal or round robin xfostering
@@ -298,6 +299,8 @@ simsN_X <- sims#
 sumN_X <- t(apply(simsN_X,1,mean_CI2))
 
 
+sim_summary <- rbind(cbind(no_X=sumST[5:4,1]/sim_data[4,1],X=sumST_X[5:4,1]/sim_data[4,1]),v_a=c(sumST[2,1]/sim_data[2,1], sumST_X[2,1]/sim_data[2,1]))
+save(sim_summary, file=paste0(wd,"Data/Intermediate/sim_summary.Rdata"), version=2)
 
 
 {
@@ -323,3 +326,45 @@ if(save_plot) dev.off()
 
 }
 
+
+
+
+######### Table
+
+if(table){
+mean_se <- function(x) {
+	y <- c(mean(x),se(x))
+	formatC(y)
+	paste(formatC(y,digits=3,format="f"),collapse="$ \\pm $")
+}
+
+
+sim_data <- formatC(c(obs_var,sim_h2,sim_h2),digits=3,format="f")
+
+load(file= paste0(wd,"Data/Intermediate/sim_ped_",trait, "_STR.Rdata"))
+sumST <- apply(sims,1,mean_se)
+
+load(file= paste0(wd,"Data/Intermediate/sim_ped_",trait, "_NR.Rdata"))
+sumN <- apply(sims,1,mean_se)
+
+load(file= paste0(wd,"Data/Intermediate/sim_ped_",trait, "_ST_XR.Rdata"))
+sumST_X <- apply(sims,1,mean_se)
+
+load(file= paste0(wd,"Data/Intermediate/sim_ped_",trait, "_N_XR.Rdata"))
+sumN_X <- apply(sims,1,mean_se)
+
+
+sim_table <- cbind(
+	sim_data,
+	sumN,
+	sumN_X,
+	sumST,
+	sumST_X
+	)[c(5,4,2),]
+
+colnames(sim_table) <- c("Simulated & \\multicolumn{2}{c}{Gaussian} & \\multicolumn{2}{c}{Skewed}\\\\ & ","N","X","N","X")
+rownames(sim_table) <- c("$h^2$ PO","$h^2$ AM", "$V_A$")
+save(sim_table, file=paste0(data_wd,"sim_table_data.Rdata"),version=2)
+
+knitr::kable(sim_table, format="latex", escape =FALSE, booktabs = T)
+}

@@ -167,20 +167,7 @@ if(re_run){
 
 
 p_star <- function(x) ifelse(x>0.05,"NS", ifelse(x>0.005,"*","**"))
-
-
-beta_plot<-function(beta, beta1, beta2, col=1,names=c(expression(beta),expression(beta[1]),expression(beta[2]))){
-
-	beta_all <- rbind(beta=mean_CI(beta),beta_1=mean_CI(beta1),beta_2=mean_CI(beta2))
-	beta_p<-c(pMCMC(beta-beta1), pMCMC(beta1-beta2), pMCMC(beta-beta2))
-
-	max_x <- max(beta_all[,1])*2.5
-	x <- max_x * c(0.7,0.7,0.9)
-	effectPlot(beta_all, xlim=c(0,max_x), col=col,names=names)
-	arrows(x,c(3,1.9,3),x,c(2.1,1,1),length=0)
-	text(x + max_x*0.075, c(2.5,1.5,2), p_star(beta_p))
-}
-
+Sign <- function(x) ifelse(x>0,"+", ifelse(x<0,"-","0"))
 
 
 
@@ -229,8 +216,9 @@ for(i in 1:length(trait)){
 	lines(y_l ~ I(z),mod_pred, col=cols[i], lty=3)
 
 	text_x <- min(z) + diff(range(z))*c(0.05,0.15,0.25,0.35)
-	text(text_x, 0.175, c("F-L","F-Q","R-L","R-Q"))
-	text(text_x, 0.15, p_star(coefs[,4]))
+	text(text_x, 0.175, c("F-L","F-Q","R-L","R-Q"), font=2)
+	text(text_x, 0.135, p_star(coefs[,4]))
+	text(text_x, 0.155, Sign(coefs[,1]))
 
 	mtext(paste0(letters[i],")"),side=3,adj=0, line=0.5)	
 

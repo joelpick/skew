@@ -55,15 +55,15 @@ nPlot <- 5
 
 layout(matrix(c(1:(5*(nPlot))),ncol=5,byrow=TRUE), width=c(1,rep(3,4)))
 par(mar=c(2,2,1,0),mgp=c(0.5,1,0)) 
-blankPlot(); text(0.5,0,c("1)"),cex=3);	mtext("Skew =", side=1, at=0.5, line=0.7, cex=1.5)
+blankPlot(); text(0.5,0,c("a)"),cex=3);	mtext("Skew =", side=1, at=0.5, line=0.7, cex=1.5)
 nlh2_plot(G_skew=0.0,E_skew=0.0,h2=0.5, colG=alpha("darkgreen",0.5), colE=alpha("yellow",0.5))
-blankPlot(); text(0.5,0,c("2)"),cex=3);	mtext("Skew =", side=1, at=0.5, line=0.7, cex=1.5)
+blankPlot(); text(0.5,0,c("b)"),cex=3);	mtext("Skew =", side=1, at=0.5, line=0.7, cex=1.5)
 nlh2_plot(G_skew=-0.99,E_skew=0.0,h2=0.5, colG=alpha("darkgreen",0.5), colE=alpha("yellow",0.5))
-blankPlot(); text(0.5,0,c("3)"),cex=3);	mtext("Skew =", side=1, at=0.5, line=0.7, cex=1.5)
+blankPlot(); text(0.5,0,c("c)"),cex=3);	mtext("Skew =", side=1, at=0.5, line=0.7, cex=1.5)
 nlh2_plot(G_skew=0.0,E_skew=-0.99,h2=0.5, colG=alpha("darkgreen",0.5), colE=alpha("yellow",0.5))
-blankPlot(); text(0.5,0,c("4)"),cex=3);	mtext("Skew =", side=1, at=0.5, line=0.7, cex=1.5)
+blankPlot(); text(0.5,0,c("d)"),cex=3);	mtext("Skew =", side=1, at=0.5, line=0.7, cex=1.5)
 nlh2_plot(G_skew=-0.99,E_skew=-0.99,h2=0.5, colG=alpha("darkgreen",0.5), colE=alpha("yellow",0.5))
-blankPlot(); text(0.5,0,c("5)"),cex=3);	mtext("Skew =", side=1, at=0.5, line=0.7, cex=1.5)
+blankPlot(); text(0.5,0,c("e)"),cex=3);	mtext("Skew =", side=1, at=0.5, line=0.7, cex=1.5)
 nlh2_plot(G_skew=-0.99,E_skew=0.99,h2=0.5, colG=alpha("darkgreen",0.5), colE=alpha("yellow",0.5))
 
 }
