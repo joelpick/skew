@@ -13,13 +13,13 @@ if(Sys.info()["user"]=="jhadfiel"){
 data_wd <- paste0(wd,"Data/Intermediate/")
 
 
-load(paste0(data_wd,"table_data.Rdata"))
+# load(paste0(data_wd,"table_data.Rdata"))
 
-knitr::kable(model_w_table$tarsus_mm)
+# knitr::kable(model_w_table$tarsus_mm)
 
-knitr::kable(model_z_table_A$tarsus_mm)
-model_z_table_DS,
-model_z_table_N,
+# knitr::kable(model_z_table_A$tarsus_mm)
+# model_z_table_DS,
+# model_z_table_N,
 
 source(paste0(wd,"R/00_functions.R"))
 
@@ -33,18 +33,18 @@ fixed_w <- analysis_options$fixed_w
 load(paste0(data_wd,"chick_data.Rdata"))
 load(paste0(data_wd,"stan_data",if(reduced)"_reduced",".Rdata"))
 
-table_pci <- function(x, digits=3, pMCMC=TRUE){
+pMCMC <- function(x, p_adj=0) 2*pmax(0.5/length(x), pmin(sum(x > p_adj)/length(x), 1 - sum(x > p_adj)/length(x)))
+
+table_pci <- function(x, digits=3, pMCMC=TRUE, p_adj=0){
 	x<-as.mcmc(x)
 	point_mean<-mean(x)
     point_mode<-MCMCglmm::posterior.mode(x)
     interval<-round(as.numeric(coda::HPDinterval(x)), digits)
-
-
-
-c(paste0(formatC(point_mean,digits=digits, format="f"), " (", formatC(point_mode,digits=digits, format="f"),") [", formatC(interval[1],digits=digits,format="f"), ", ", formatC(interval[2], digits=digits,format="f"), "]"),formatC(pMCMC(x),digits=digits, format="f"))
+	c(paste0(formatC(point_mean,digits=digits, format="f"), " (", formatC(point_mode,digits=digits, format="f"),") [", formatC(interval[1],digits=digits,format="f"), ", ", formatC(interval[2], digits=digits,format="f"), "]"),formatC(pMCMC(x,p_adj=p_adj),digits=digits, format="f"))
 
 	# c(PCI(x),formatC(pMCMC(x),digits=digits, format="f"))
 }
+
 
 
 model_w_table <- list()
@@ -52,7 +52,7 @@ model_z_table_A <- list()
 model_z_table_DS <- list()
 model_z_table_N <- list()
 
-traits <-  c("tarsus_mm","headbill_mm","wing_mm","weight_g")
+traits <-  c("tarsus_mm","headbill_mm","weight_g","wing_mm")
 traits_lab <- sub("_.+","",traits)
 traits_lab <- sub("weight","mass",traits_lab)
 substr(traits_lab,1,1) <- LETTERS[match(substr(traits_lab,1,1),letters)]
@@ -202,10 +202,37 @@ for (trait in traits){
 
 }
 
+
+
+#### selection gradient comparison table
+
+
+
+SG_table <- t(sapply(traits, function(i){
+	load(paste0(data_wd,"selection_gradients_ME_",i,".Rdata"))
+	c(table_pci(rowMeans(beta1)/rowMeans(beta3), p_adj=1), 
+	  table_pci(rowMeans(beta1)/rowMeans(beta2), p_adj=1), 
+	  table_pci(rowMeans(beta2)/rowMeans(beta3), p_adj=1)
+	)
+}))
+
+colnames(SG_table) <- c("$\\beta_1 / \\beta$ &  & $\\beta_1 / \\beta_2$ &  & $\\beta_2 / \\beta$ & \\\\ & Posterior Mean (Mode) [CI]","pMCMC", " Posterior Mean (Mode) [CI]","pMCMC", " Posterior Mean (Mode) [CI]","pMCMC")
+rownames(SG_table) <- traits_lab
+
+knitr::kable(SG_table,format="latex", escape=FALSE)
+
+
+
 save(
 model_w_table,
 model_z_table_A,
 model_z_table_DS,
-model_z_table_N, file=paste0(data_wd,"table_data.Rdata"),version=2)
+model_z_table_N,
+SG_table, file=paste0(data_wd,"table_data.Rdata"),version=2)
+
+
+
+
+
 
 

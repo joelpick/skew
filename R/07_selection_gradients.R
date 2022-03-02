@@ -29,7 +29,7 @@ ncores <- 8
 n_it <- 1000
 nplot_points<- 100
 re_run <- FALSE
-save_plot <- TRUE
+save_plot <- FALSE
 
 load(paste0(data_wd,"chick_data.Rdata"))
 # THBW_noRep is data excluding repeat measures, used for survival analysis
@@ -160,7 +160,7 @@ if(re_run){
 
 		}
 
-		save(S,beta1, beta2, beta3, dmin, dmax, Wplot, WDplot, Wplot_points, file=paste0(data_wd,"selection_gradients_ME_",trait,".Rdata"))
+		save(S,beta1, beta2, beta3, dmin, dmax, Wplot, WDplot, Wplot_points, file=paste0(data_wd,"selection_gradients_ME_",trait,".Rdata"), version=2)
 		detach(model_w_out)
 	}
 }
@@ -241,3 +241,5 @@ if(save_plot) dev.off()
 
 save(internal_optimum, file=paste0(data_wd,"internal_optimum_ME.Rdata"), version=2)
 )
+
+

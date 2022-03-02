@@ -8,6 +8,7 @@ library(coda)
 library(cubature)
 library(parallel)
 library(viridis)
+library(scales)
 
 
 if(Sys.info()["user"]=="jhadfiel"){
